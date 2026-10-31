@@ -48,6 +48,7 @@ nav button.on{color:var(--ocre);font-weight:700}
 .verdict p{margin:4px 0}
 .vt{font-weight:700;font-size:1.1rem}
 .big{font-size:1.6rem;font-weight:700;margin:4px 0}
+.caisse{font-size:1.15rem;margin:6px 0 2px}
 .v-vert{background:var(--vert-l);color:var(--vert)}
 .v-jaune{background:var(--jaune-l);color:var(--jaune)}
 .v-rouge{background:var(--rouge-l);color:var(--rouge)}
@@ -428,8 +429,9 @@ function blocVerdict(r, d){
 
   let h = `<div class="verdict v-${e.classe==='premier'?'neutre':e.classe}">
     <div class="vt">${titres[e.classe]}</div>
+    <div class="caisse">À payer en caisse : <b>${eur(e.total)}</b>${e.n > 1 ? ` pour ${e.n} exemplaires` : ''}</div>
     <div class="big">${fmtPU(e.pu,u)}</div>
-    <p>${e.n > 1 ? `Tu en prends ${e.n} pour ${eur(e.total)}` : `Tu paies ${eur(e.total)}`}${e.remise > 0.005 ? ` · -${Math.round(e.remise*100)} % sur le prix normal` : ''}</p>
+    <p>${e.remise > 0.005 ? `-${Math.round(e.remise*100)} % sur le prix normal (${eur(r.prix)}${e.n > 1 ? ' pièce' : ''})` : 'Prix normal, sans promo'}</p>
     <p>${refTxt}</p>
   </div>`;
   const mp = d.id ? meilleurePromo(d) : null;
@@ -570,7 +572,8 @@ function vueDecl(id){
     ${rels.map(({r,pu}) => `<div class="rel">
       <div class="txt">
         <b>${esc(r.enseigne)}</b>${ref && ref.r.id === r.id ? '<span class="tag">réf.</span>' : ''}${r.via==='proche' ? '<span class="tag">d’un proche</span>' : ''}<br>
-        <span class="muted">${esc(mecTxt(r.mec))} · ${eur(r.prix)} · ${fmtDate(r.date)}${r.fin ? (r.fin < auj ? ' · terminée' : ` · jusqu'au ${fmtDate(r.fin)}`) : ''}</span>
+        À payer : <b>${eur(calc(r.prix, r.mec).total)}</b>${calc(r.prix, r.mec).n > 1 ? ` pour ${calc(r.prix, r.mec).n}` : ''}<br>
+        <span class="muted">${esc(mecTxt(r.mec))} · prix normal ${eur(r.prix)} · ${fmtDate(r.date)}${r.fin ? (r.fin < auj ? ' · terminée' : ` · jusqu'au ${fmtDate(r.fin)}`) : ''}</span>
         <br><button class="link" data-share="${r.id}">Partager</button>
       </div>
       <div class="pu">${fmtPU(pu, d.unite)}</div>
