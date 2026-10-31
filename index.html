@@ -144,6 +144,7 @@ const PRESETS = [
   {id:'2+2',    label:'2+2'},
   {id:'3+1',    label:'3+1'},
   {id:'neme',   label:'2e à -50 %'},
+  {id:'vol',    label:'x = -y %'},
   {id:'pct',    label:'-x %'},
   {id:'promo',  label:'Prix barré'},
   {id:'lot',    label:'x pour y €'}
@@ -198,6 +199,7 @@ function calc(prix, mec){
     case 'pct':   return {n:1, total:prix * (1 - mec.pct/100)};
     case 'plus':  return {n:mec.a + mec.b, total:prix * mec.a};
     case 'neme':  return {n:mec.n, total:prix * (mec.n - 1) + prix * (1 - mec.pct/100)};
+    case 'vol':   return {n:mec.n, total:prix * mec.n * (1 - mec.pct/100)};
     case 'lot':   return {n:mec.x, total:mec.y};
     default:      return {n:1, total:prix};
   }
@@ -208,6 +210,7 @@ function mecValide(m){
     case 'pct':   return m.pct > 0 && m.pct < 100;
     case 'plus':  return Number.isInteger(m.a) && Number.isInteger(m.b) && m.a >= 1 && m.b >= 1;
     case 'neme':  return Number.isInteger(m.n) && m.n >= 2 && m.pct > 0 && m.pct <= 100;
+    case 'vol':   return Number.isInteger(m.n) && m.n >= 2 && m.pct > 0 && m.pct < 100;
     case 'lot':   return Number.isInteger(m.x) && m.x >= 1 && m.y > 0;
     default:      return true;
   }
@@ -218,6 +221,7 @@ function mecTxt(m){
     case 'pct':   return `-${fmtNum(m.pct)} %`;
     case 'plus':  return `${m.a}+${m.b}`;
     case 'neme':  return m.pct >= 100 ? `${m.n}e gratuit` : `${m.n}e à -${fmtNum(m.pct)} %`;
+    case 'vol':   return `${m.n} = -${fmtNum(m.pct)} %`;
     case 'lot':   return `${m.x} pour ${eur(m.y)}`;
     default:      return 'prix normal';
   }
@@ -319,7 +323,7 @@ let f = formVide();
 function formVide(garder){
   return {prod:'', declSel:'', dNom:'', unite:'piece', contenance:'', besoin:'1',
           enseigne: garder?.enseigne || '', autreEns:'', prix:'',
-          preset:'aucune', a:'1', b:'1', n:'2', pctN:'50', pct:'30', prixPromo:'', x:'3', y:'',
+          preset:'aucune', a:'1', b:'1', n:'2', pctN:'50', nV:'2', pctV:'20', pct:'30', prixPromo:'', x:'3', y:'',
           source: garder?.source || 'rayon', fin:'', auto:null, editId:null, editDate:null};
 }
 // Remplit le formulaire avec un relevé existant, pour le corriger
@@ -331,6 +335,7 @@ function formDepuisReleve(r){
   const m = r.mec;
   if(m.type === 'plus'){ const k = `${m.a}+${m.b}`; g.preset = PRESETS.some(x => x.id === k) ? k : '1+1'; g.a = String(m.a); g.b = String(m.b); }
   else if(m.type === 'neme'){ g.preset = 'neme'; g.n = String(m.n); g.pctN = fmtNum(m.pct); }
+  else if(m.type === 'vol'){ g.preset = 'vol'; g.nV = String(m.n); g.pctV = fmtNum(m.pct); }
   else if(m.type === 'pct'){ g.preset = 'pct'; g.pct = fmtNum(m.pct); }
   else if(m.type === 'promo'){ g.preset = 'promo'; g.prixPromo = fmtNum(m.prixPromo); }
   else if(m.type === 'lot'){ g.preset = 'lot'; g.x = String(m.x); g.y = fmtNum(m.y); }
@@ -341,6 +346,7 @@ function mecDuForm(){
   switch(f.preset){
     case '1+1': case '2+1': case '2+2': case '3+1': return {type:'plus', a:num(f.a), b:num(f.b)};
     case 'neme':  return {type:'neme', n:num(f.n), pct:num(f.pctN)};
+    case 'vol':   return {type:'vol', n:num(f.nV), pct:num(f.pctV)};
     case 'pct':   return {type:'pct', pct:num(f.pct)};
     case 'promo': return {type:'promo', prixPromo:num(f.prixPromo)};
     case 'lot':   return {type:'lot', x:num(f.x), y:num(f.y)};
@@ -425,6 +431,10 @@ function vueVerif(){
     <div class="row" data-mec="neme">
       <div><label for="n">Le combientième ?</label><input id="n" inputmode="numeric" value="${esc(f.n)}"></div>
       <div><label for="pctN">Remise (%)</label><input id="pctN" inputmode="decimal" value="${esc(f.pctN)}"></div>
+    </div>
+    <div class="row" data-mec="vol">
+      <div><label for="nV">Tu en prends</label><input id="nV" inputmode="numeric" value="${esc(f.nV)}"></div>
+      <div><label for="pctV">Remise sur le tout (%)</label><input id="pctV" inputmode="decimal" value="${esc(f.pctV)}"></div>
     </div>
     <div data-mec="pct"><label for="pct">Remise (%)</label><input id="pct" inputmode="decimal" value="${esc(f.pct)}"></div>
     <div data-mec="promo"><label for="prixPromo">Prix en promo</label><input id="prixPromo" inputmode="decimal" placeholder="€" value="${esc(f.prixPromo)}"></div>
@@ -833,7 +843,7 @@ function brancherChips(groupe){
   });
 }
 function brancherVerif(){
-  ['prod','autreEns','prix','a','b','n','pctN','pct','prixPromo','x','y','fin'].forEach(id => {
+  ['prod','autreEns','prix','a','b','n','pctN','nV','pctV','pct','prixPromo','x','y','fin'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.addEventListener('input', () => {
       f[id] = el.value;
