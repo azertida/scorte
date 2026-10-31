@@ -1,6 +1,6 @@
 // Scorte — service worker : réseau d'abord, cache en secours (hors ligne)
-const CACHE = 'scorte-v3';
-const FICHIERS = ['./', './index.html', './manifest.json', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png'];
+const CACHE = 'scorte-v4';
+const FICHIERS = ['./', './index.html', './manifest.json', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png', './fonts/fraunces-var.woff2', './fonts/atkinson-400.woff2', './fonts/atkinson-700.woff2', './fonts/dmmono-400.woff2', './fonts/dmmono-500.woff2'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FICHIERS)));

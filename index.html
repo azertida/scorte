@@ -13,17 +13,52 @@
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <style>
+@font-face {
+  font-family: 'Fraunces';
+  src: url('fonts/fraunces-var.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Atkinson Hyperlegible';
+  src: url('fonts/atkinson-400.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Atkinson Hyperlegible';
+  src: url('fonts/atkinson-700.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'DM Mono';
+  src: url('fonts/dmmono-400.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'DM Mono';
+  src: url('fonts/dmmono-500.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
 :root{
   --bg:#f6eedd;--card:#fffaf0;--ink:#3a2e1f;--muted:#76664f;--ocre:#b9781f;--ocre-l:#f0dcb6;--line:#e3d5bb;
   --vert:#2b6e35;--vert-l:#dcefd8;--jaune:#80590a;--jaune-l:#f8ebc4;--rouge:#9c2f27;--rouge-l:#f6dad5;--bleu-l:#e6eef6;--bleu:#2c4f75;
 }
 *{box-sizing:border-box}
 html{font-size:18px;-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;line-height:1.4;padding-bottom:calc(80px + env(safe-area-inset-bottom))}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Atkinson Hyperlegible',-apple-system,BlinkMacSystemFont,sans-serif;line-height:1.4;padding-bottom:calc(80px + env(safe-area-inset-bottom))}
 header{padding:calc(14px + env(safe-area-inset-top)) 16px 4px;max-width:640px;margin:0 auto}
-h1{margin:0;font-size:1.6rem}
+h1{margin:0;font-size:1.7rem;font-family:'Fraunces',serif;font-weight:600}
 h1 span{color:var(--ocre)}
-h2{font-size:1.2rem;margin:18px 0 6px}
+h2{font-size:1.2rem;margin:18px 0 6px;font-family:'Fraunces',serif;font-weight:600}
 main{padding:0 16px;max-width:640px;margin:0 auto}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:12px 0}
 label{display:block;font-weight:600;margin:14px 0 6px}
@@ -47,11 +82,12 @@ nav button.on{color:var(--ocre);font-weight:700}
 .verdict{border-radius:14px;padding:14px;margin:12px 0}
 .verdict p{margin:4px 0}
 .vt{font-weight:700;font-size:1.1rem}
-.big{font-size:1.6rem;font-weight:700;margin:4px 0}
+.big{font-size:1.7rem;font-weight:600;margin:4px 0;font-family:'Fraunces',serif}
 .caisse{font-size:1.15rem;margin:6px 0 2px}
 .ligne{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-top:8px}
 .ligne>span:first-child{min-width:0}
-.prix{font-weight:700;white-space:nowrap;text-align:right}
+.prix{font-weight:500;white-space:nowrap;text-align:right;font-family:'DM Mono',monospace}
+.prix small{font-family:'Atkinson Hyperlegible',sans-serif}
 .prix small{display:block;font-weight:400;font-size:.85rem;color:var(--muted)}
 .prix.promo{color:var(--rouge)}
 .v-vert{background:var(--vert-l);color:var(--vert)}
@@ -66,7 +102,8 @@ nav button.on{color:var(--ocre);font-weight:700}
 .rel{display:flex;gap:10px;align-items:flex-start;border-top:1px solid var(--line);padding:10px 0}
 .rel:first-child{border-top:none}
 .rel .txt{flex:1;min-width:0}
-.rel .pu{font-weight:700;white-space:nowrap}
+.rel .pu{font-weight:500;white-space:nowrap;font-family:'DM Mono',monospace}
+input[inputmode="decimal"],input[inputmode="numeric"]{font-family:'DM Mono',monospace}
 .tag{display:inline-block;background:var(--ocre-l);border-radius:6px;padding:1px 7px;font-size:.85rem;margin-left:4px}
 .x{background:none;border:none;color:var(--muted);font-size:1.3rem;padding:0 4px;cursor:pointer}
 .link{background:none;border:none;color:var(--ocre);font:inherit;font-weight:600;padding:0;cursor:pointer}
@@ -105,6 +142,7 @@ const PRESETS = [
   {id:'1+1',    label:'1+1'},
   {id:'2+1',    label:'2+1'},
   {id:'2+2',    label:'2+2'},
+  {id:'3+1',    label:'3+1'},
   {id:'neme',   label:'2e à -50 %'},
   {id:'pct',    label:'-x %'},
   {id:'promo',  label:'Prix barré'},
@@ -121,7 +159,14 @@ function charger(){
 }
 function sauver(){ try{ localStorage.setItem(KEY, JSON.stringify(data)); }catch(e){ toast("Impossible d'enregistrer sur ce téléphone"); } }
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
-const aujourdhui = () => new Date().toISOString().slice(0,10);
+// Dates au format AAAA-MM-JJ, en heure locale
+const isoLocal = dt => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+const aujourdhui = () => isoLocal(new Date());
+function plusJours(iso, n){ const [y,m,d] = iso.split('-').map(Number); return isoLocal(new Date(y, m-1, d + n)); }
+const DUREE_PROMO = 7;
+// Fin d'une promo : la date indiquée, sinon 7 jours après le relevé
+const finPromo = r => r.fin || plusJours(r.date, DUREE_PROMO);
+const promoTerminee = r => finPromo(r) < aujourdhui();
 
 // ---------- Outils ----------
 const num = v => { const n = parseFloat(String(v ?? '').replace(',', '.').trim()); return isFinite(n) ? n : NaN; };
@@ -196,11 +241,26 @@ function meilleurePromo(d){
   }
   return best;
 }
-// Prix à afficher sur les cartes : la meilleure promo encore valable, sinon le meilleur prix habituel
+// Dans chaque enseigne, seul le relevé le plus récent décrit la situation actuelle
+const plusRecent = (a, b) => (b.date + b.id).localeCompare(a.date + a.id);
+function actuelsParEnseigne(declId){
+  const vus = new Map();
+  for(const r of relevesDe(declId).sort(plusRecent)) if(!vus.has(r.enseigne)) vus.set(r.enseigne, r);
+  return vus;
+}
+function estRemplace(r){ return actuelsParEnseigne(r.declId).get(r.enseigne) !== r; }
+function etatPromo(r){
+  if(estRemplace(r)) return ' · remplacé par un relevé plus récent';
+  if(r.mec.type === 'aucune') return '';
+  return promoTerminee(r) ? ` · terminée le ${fmtDate(finPromo(r))}` : ` · jusqu'au ${fmtDate(finPromo(r))}`;
+}
+// Une promo terminée peut être réactivée si c'est toujours le dernier relevé de son enseigne
+const peutReactiver = r => r.mec.type !== 'aucune' && promoTerminee(r) && !estRemplace(r);
+// Prix à afficher sur les cartes : la meilleure promo en cours, sinon le meilleur prix habituel
 function prixCarte(d){
   const auj = aujourdhui();
   let mp = null;
-  for(const r of relevesDe(d.id).filter(x => x.mec.type !== 'aucune' && (!x.fin || x.fin >= auj))){
+  for(const r of [...actuelsParEnseigne(d.id).values()].filter(x => x.mec.type !== 'aucune' && !promoTerminee(x))){
     const pu = puEffectif(r, d); if(!mp || pu < mp.pu) mp = {pu, r};
   }
   const ref = reference(d);
@@ -260,11 +320,26 @@ function formVide(garder){
   return {prod:'', declSel:'', dNom:'', unite:'piece', contenance:'', besoin:'1',
           enseigne: garder?.enseigne || '', autreEns:'', prix:'',
           preset:'aucune', a:'1', b:'1', n:'2', pctN:'50', pct:'30', prixPromo:'', x:'3', y:'',
-          source: garder?.source || 'rayon', fin:'', auto:null};
+          source: garder?.source || 'rayon', fin:'', auto:null, editId:null, editDate:null};
+}
+// Remplit le formulaire avec un relevé existant, pour le corriger
+function formDepuisReleve(r){
+  const d = declParId(r.declId), p = d && prodParId(d.produitId);
+  const g = formVide();
+  g.prod = p ? p.nom : ''; g.declSel = d ? d.id : '';
+  g.enseigne = r.enseigne; g.prix = fmtNum(r.prix); g.source = r.source || 'rayon'; g.fin = r.fin || '';
+  const m = r.mec;
+  if(m.type === 'plus'){ const k = `${m.a}+${m.b}`; g.preset = PRESETS.some(x => x.id === k) ? k : '1+1'; g.a = String(m.a); g.b = String(m.b); }
+  else if(m.type === 'neme'){ g.preset = 'neme'; g.n = String(m.n); g.pctN = fmtNum(m.pct); }
+  else if(m.type === 'pct'){ g.preset = 'pct'; g.pct = fmtNum(m.pct); }
+  else if(m.type === 'promo'){ g.preset = 'promo'; g.prixPromo = fmtNum(m.prixPromo); }
+  else if(m.type === 'lot'){ g.preset = 'lot'; g.x = String(m.x); g.y = fmtNum(m.y); }
+  g.editId = r.id; g.editDate = r.date; g.editVia = r.via;
+  return g;
 }
 function mecDuForm(){
   switch(f.preset){
-    case '1+1': case '2+1': case '2+2': return {type:'plus', a:num(f.a), b:num(f.b)};
+    case '1+1': case '2+1': case '2+2': case '3+1': return {type:'plus', a:num(f.a), b:num(f.b)};
     case 'neme':  return {type:'neme', n:num(f.n), pct:num(f.pctN)};
     case 'pct':   return {type:'pct', pct:num(f.pct)};
     case 'promo': return {type:'promo', prixPromo:num(f.prixPromo)};
@@ -280,8 +355,8 @@ function declDuForm(){
           contenance:num(f.contenance), besoin: Math.max(1, Math.round(num(f.besoin)) || 1)};
 }
 function releveDuForm(){
-  return {id:null, enseigne: f.enseigne === '__autre' ? f.autreEns.trim() : f.enseigne,
-          prix:num(f.prix), mec:mecDuForm(), source:f.source, fin:f.fin, date:aujourdhui()};
+  return {id:f.editId || null, enseigne: f.enseigne === '__autre' ? f.autreEns.trim() : f.enseigne,
+          prix:num(f.prix), mec:mecDuForm(), source:f.source, fin: f.preset === 'aucune' ? '' : f.fin, date:aujourdhui()};
 }
 function formComplet(){
   if(!f.prod.trim()) return false;
@@ -303,7 +378,7 @@ function preremplir(){
   const d = declDuForm();
   let src = null;
   if(d.id){
-    const rels = relevesDe(d.id).sort((a,b) => (b.date + b.id).localeCompare(a.date + a.id));
+    const rels = relevesDe(d.id).filter(x => x.id !== f.editId).sort(plusRecent);
     const ens = f.enseigne && f.enseigne !== '__autre' ? f.enseigne : null;
     src = ens ? rels.find(x => x.enseigne === ens) : rels[0];
   }
@@ -320,7 +395,8 @@ function preremplir(){
 function vueVerif(){
   const ens = enseignesConnues();
   return `
-  ${entrant ? carteEntrante() : ''}
+  ${entrant && !f.editId ? carteEntrante() : ''}
+  ${f.editId ? `<div class="verdict v-info"><p><b>Correction du relevé du ${fmtDate(f.editDate)}</b><br>Change ce qui est faux, puis enregistre.</p></div>` : ''}
   <div class="card">
     <label for="prod">Produit <span class="hint">(marque et gamme)</span></label>
     <input id="prod" list="prodList" autocomplete="off" placeholder="ex. Dash Pods 3en1" value="${esc(f.prod)}">
@@ -362,8 +438,10 @@ function vueVerif(){
       <button class="chip${f.source==='rayon'?' on':''}" data-v="rayon">En rayon</button>
       <button class="chip${f.source==='folder'?' on':''}" data-v="folder">Dans le folder</button>
     </div>
-    <label for="fin">Promo valable jusqu'au <span class="hint">(facultatif)</span></label>
-    <input id="fin" type="date" value="${esc(f.fin)}">
+    <div id="finZone" ${f.preset==='aucune'?'hidden':''}>
+      <label for="fin">Promo valable jusqu'au <span class="hint">(proposé à ${DUREE_PROMO} jours, modifiable)</span></label>
+      <input id="fin" type="date" value="${esc(f.fin)}">
+    </div>
   </div>
   <div id="resultat"></div>`;
 }
@@ -413,7 +491,7 @@ function majVerif(){
   const lc = document.getElementById('lblCont');
   if(lc) lc.innerHTML = `Contenance <span class="hint">(${UNITES[f.unite].saisie})</span>`;
   document.getElementById('autreEns').hidden = f.enseigne !== '__autre';
-  const groupe = {'1+1':'plus','2+1':'plus','2+2':'plus'}[f.preset] || f.preset;
+  const groupe = {'1+1':'plus','2+1':'plus','2+2':'plus','3+1':'plus'}[f.preset] || f.preset;
   document.querySelectorAll('[data-mec]').forEach(el => el.hidden = el.dataset.mec !== groupe);
   const info = document.getElementById('autoInfo');
   info.hidden = !f.auto;
@@ -421,6 +499,7 @@ function majVerif(){
   document.getElementById('resultat').innerHTML = carteResultat();
   const s = document.getElementById('btnSave'); if(s) s.onclick = enregistrer;
   const sh = document.getElementById('btnShare'); if(sh) sh.onclick = () => partager(releveDuForm(), declDuForm(), f.prod.trim());
+  const an = document.getElementById('btnAnnuler'); if(an) an.onclick = finCorrection;
 }
 
 function carteResultat(){
@@ -431,6 +510,11 @@ function carteResultat(){
       : 'Remplis le produit, la contenance, l\'enseigne et le prix : le verdict s\'affiche ici.';
     return `<p class="empty">${msg}</p>`;
   }
+  if(f.editId) return blocVerdict(releveDuForm(), declDuForm()) + `
+    <div class="btns">
+      <button class="btn" id="btnSave">Enregistrer la correction</button>
+      <button class="btn sec" id="btnAnnuler">Annuler</button>
+    </div>`;
   return blocVerdict(releveDuForm(), declDuForm()) + `
     <div class="btns">
       <button class="btn" id="btnSave">Enregistrer</button>
@@ -476,10 +560,26 @@ function enregistrer(){
   if(!p){ p = {id:uid(), nom:f.prod.trim()}; data.produits.push(p); }
   let d = declDuForm();
   if(!d.id){ d = {...d, id:uid(), produitId:p.id}; data.declinaisons.push(d); }
-  const r = releveDuForm(); r.id = uid(); r.declId = d.id;
+  const r = releveDuForm(); r.declId = d.id;
+  if(f.editId){
+    r.date = f.editDate; if(f.editVia) r.via = f.editVia;
+    const i = data.releves.findIndex(x => x.id === f.editId);
+    if(i >= 0) data.releves[i] = r; else data.releves.push(r);
+    sauver(); toast('Relevé corrigé');
+    finCorrection(d.id);
+    return;
+  }
+  r.id = uid();
   data.releves.push(r);
   sauver(); toast('Relevé enregistré');
   f = formVide(f); cleZone = null; rendre();
+}
+// Quitte la correction et revient sur la fiche de la déclinaison
+function finCorrection(declId){
+  const id = typeof declId === 'string' ? declId : (declParId(declDuForm().id || '') || {}).id || (data.releves.find(x => x.id === f.editId) || {}).declId;
+  f = formVide(); cleZone = null;
+  onglet = 'produits'; declOuverte = id || null; prodOuvert = null;
+  rendre(); window.scrollTo(0,0);
 }
 
 // ---------- Lien reçu d'un proche ----------
@@ -603,8 +703,8 @@ function vueDecl(id){
       <div class="txt">
         <b>${esc(r.enseigne)}</b>${ref && ref.r.id === r.id ? '<span class="tag">réf.</span>' : ''}${r.via==='proche' ? '<span class="tag">d’un proche</span>' : ''}<br>
         À payer : <b>${eur(calc(r.prix, r.mec).total)}</b>${calc(r.prix, r.mec).n > 1 ? ` pour ${calc(r.prix, r.mec).n}` : ''}<br>
-        <span class="muted">${esc(mecTxt(r.mec))} · prix normal ${eur(r.prix)} · ${fmtDate(r.date)}${r.fin ? (r.fin < auj ? ' · terminée' : ` · jusqu'au ${fmtDate(r.fin)}`) : ''}</span>
-        <br><button class="link" data-share="${r.id}">Partager</button>
+        <span class="muted">${esc(mecTxt(r.mec))} · prix normal ${eur(r.prix)} · ${fmtDate(r.date)}${etatPromo(r)}</span>
+        <br><button class="link" data-edit="${r.id}">Modifier</button> &nbsp; <button class="link" data-share="${r.id}">Partager</button>${peutReactiver(r) ? ` &nbsp; <button class="link" data-react="${r.id}">Réactiver</button>` : ''}
       </div>
       <div class="pu">${fmtPU(pu, d.unite)}</div>
       <button class="x" data-del="${r.id}" aria-label="Supprimer">×</button>
@@ -624,6 +724,16 @@ function brancherDecl(){
   });
   document.querySelectorAll('[data-share]').forEach(b => b.onclick = () => {
     const r = data.releves.find(x => x.id === b.dataset.share); if(r) partager(r, d, p ? p.nom : '');
+  });
+  document.querySelectorAll('[data-react]').forEach(b => b.onclick = () => {
+    const r = data.releves.find(x => x.id === b.dataset.react); if(!r) return;
+    r.fin = plusJours(aujourdhui(), DUREE_PROMO);
+    sauver(); toast(`Promo réactivée jusqu'au ${fmtDate(r.fin)}`); rendre();
+  });
+  document.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => {
+    const r = data.releves.find(x => x.id === b.dataset.edit); if(!r) return;
+    f = formDepuisReleve(r); cleZone = null;
+    declOuverte = null; prodOuvert = null; onglet = 'verif'; rendre(); window.scrollTo(0,0);
   });
   document.getElementById('dVerif').onclick = () => {
     f = formVide(); f.prod = p ? p.nom : ''; f.declSel = d.id;
@@ -707,9 +817,14 @@ function brancherChips(groupe){
     const champ = groupe.dataset.champ, v = b.dataset.v;
     f[champ] = v;
     if(champ === 'preset'){
-      if(v === '1+1'){ f.a='1'; f.b='1'; } else if(v === '2+1'){ f.a='2'; f.b='1'; } else if(v === '2+2'){ f.a='2'; f.b='2'; }
+      if(v === '1+1'){ f.a='1'; f.b='1'; } else if(v === '2+1'){ f.a='2'; f.b='1'; } else if(v === '2+2'){ f.a='2'; f.b='2'; } else if(v === '3+1'){ f.a='3'; f.b='1'; }
       else if(v === 'neme'){ f.n='2'; f.pctN='50'; }
       ['a','b','n','pctN'].forEach(k => { const el = document.getElementById(k); if(el) el.value = f[k]; });
+      // Date de fin proposée d'office à 7 jours, retirée si on revient à « Aucune »
+      if(v !== 'aucune' && !f.fin){ f.fin = plusJours(aujourdhui(), DUREE_PROMO); f.finAuto = true; }
+      if(v === 'aucune' && f.finAuto){ f.fin = ''; f.finAuto = false; }
+      const fi = document.getElementById('fin'); if(fi) fi.value = f.fin;
+      document.getElementById('finZone').hidden = v === 'aucune';
     }
     groupe.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c === b));
     if(champ === 'enseigne' || champ === 'declSel') preremplir();
@@ -723,13 +838,14 @@ function brancherVerif(){
     if(el) el.addEventListener('input', () => {
       f[id] = el.value;
       if(id === 'prix' && f.auto) f.auto = null;
+      if(id === 'fin') f.finAuto = false;
       if(id === 'prod'){ ajusterDecl(); preremplir(); }
       majVerif();
     });
   });
   document.querySelectorAll('#app .card > [data-champ]').forEach(brancherChips);
 }
-document.querySelectorAll('nav button').forEach(b => b.onclick = () => { onglet = b.dataset.tab; prodOuvert = null; declOuverte = null; rendre(); window.scrollTo(0,0); });
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => { if(f.editId) f = formVide(); onglet = b.dataset.tab; prodOuvert = null; declOuverte = null; rendre(); window.scrollTo(0,0); });
 
 lireLien();
 rendre();
