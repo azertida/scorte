@@ -530,6 +530,7 @@ function vueProduit(id){
       ${mp && ref && mp.pu < ref.pu ? `<br>Meilleure promo : ${fmtPU(mp.pu,d.unite)} · ${esc(mp.r.enseigne)}` : ''}
       <br><span class="muted">${nb} relevé${nb>1?'s':''}</span>
     </button>`).join('') || '<p class="muted">Aucune déclinaison.</p>'}
+  <button class="btn" id="pNouvelle">+ Ajouter une déclinaison</button>
   <button class="btn danger" id="pSuppr">Supprimer ce produit</button>`;
 }
 function brancherProduit(){
@@ -542,6 +543,11 @@ function brancherProduit(){
     p.nom = v; sauver(); toast('Nom modifié');
   };
   document.querySelectorAll('[data-decl]').forEach(b => b.onclick = () => { declOuverte = b.dataset.decl; rendre(); window.scrollTo(0,0); });
+  document.getElementById('pNouvelle').onclick = () => {
+    f = formVide(); f.prod = p.nom; f.declSel = '__new';
+    prodOuvert = null; onglet = 'verif'; rendre(); window.scrollTo(0,0);
+    const el = document.getElementById('dNom'); if(el) el.focus();
+  };
   document.getElementById('pSuppr').onclick = () => {
     if(confirm(`Supprimer « ${p.nom} », ses déclinaisons et tous leurs relevés ?`)){
       const ids = new Set(declsDe(p.id).map(d => d.id));
