@@ -1,5 +1,5 @@
 // Scorte — service worker : réseau d'abord, cache en secours (hors ligne)
-const CACHE = 'scorte-v1';
+const CACHE = 'scorte-v3';
 const FICHIERS = ['./', './index.html', './manifest.json', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', e => {
