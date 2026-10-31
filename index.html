@@ -85,7 +85,16 @@ nav button.on{color:var(--ocre);font-weight:700}
 .big{font-size:1.7rem;font-weight:600;margin:4px 0;font-family:'Fraunces',serif}
 .caisse{font-size:1.15rem;margin:6px 0 2px}
 .ligne{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-top:8px}
-.ligne>span:first-child{min-width:0}
+.ligne>span:first-child,.ligne>b{min-width:0}
+.details{margin-top:8px;display:flex;flex-direction:column;gap:2px}
+.stock{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px}
+.chip-s{font-size:.85rem;border-radius:999px;padding:2px 10px}
+.chip-s.bas{background:var(--rouge-l);color:var(--rouge)}
+.chip-s.haut{background:var(--vert-l);color:var(--vert)}
+.moins{margin-left:auto;border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 16px;font:inherit;font-weight:700;color:var(--ink);cursor:pointer}
+.stockedit{display:flex;align-items:center;justify-content:center;gap:28px}
+.stockedit .moins{margin-left:0}
+.nw{white-space:nowrap}
 .prix{font-weight:500;white-space:nowrap;text-align:right;font-family:'DM Mono',monospace}
 .prix small{font-family:'Atkinson Hyperlegible',sans-serif}
 .prix small{display:block;font-weight:400;font-size:.85rem;color:var(--muted)}
@@ -272,6 +281,28 @@ function prixCarte(d){
   if(ref) return {montant:ref.r.prix, n:1, promo:false, enseigne:ref.r.enseigne};
   return null;
 }
+// ---------- Réserve ----------
+// Le stock compte des exemplaires (paquets, bouteilles). Non suivi tant qu'il n'existe pas.
+const aStock = d => typeof d.stock === 'number';
+function etatStock(d){
+  if(!aStock(d)) return null;
+  const bas = d.seuilBas ?? 1, haut = d.seuilHaut;
+  if(d.stock <= bas) return 'bas';
+  if(haut && d.stock >= haut) return 'haut';
+  return 'ok';
+}
+function htmlStock(d){
+  if(!aStock(d)) return '';
+  const e = etatStock(d);
+  return `<div class="stock"><span>En réserve : <b>${d.stock}</b></span>
+    ${e === 'bas' ? '<span class="chip-s bas">À racheter</span>' : e === 'haut' ? '<span class="chip-s haut">Réserve pleine</span>' : ''}
+    ${d.stock > 0 ? `<button class="moins" data-moins="${d.id}" aria-label="J'en ai entamé un">−1</button>` : ''}</div>`;
+}
+function retirerUn(id){
+  const d = declParId(id); if(!d || !(d.stock > 0)) return;
+  d.stock--; sauver(); toast(d.stock ? `Il en reste ${d.stock}` : 'Plus rien en réserve'); rendre();
+}
+
 function htmlPrix(pc){
   if(!pc) return '';
   return `<span class="prix${pc.promo ? ' promo' : ''}">${eur(pc.montant)}${pc.n > 1 ? `<small> pour ${pc.n}</small>` : ''}<small>${esc(pc.enseigne)}${pc.promo ? ' · ' + esc(mecTxt(pc.mec)) : ''}</small></span>`;
@@ -339,7 +370,7 @@ function formDepuisReleve(r){
   else if(m.type === 'pct'){ g.preset = 'pct'; g.pct = fmtNum(m.pct); }
   else if(m.type === 'promo'){ g.preset = 'promo'; g.prixPromo = fmtNum(m.prixPromo); }
   else if(m.type === 'lot'){ g.preset = 'lot'; g.x = String(m.x); g.y = fmtNum(m.y); }
-  g.editId = r.id; g.editDate = r.date; g.editVia = r.via;
+  g.editId = r.id; g.editDate = r.date; g.editVia = r.via; g.editAchat = r.achat;
   return g;
 }
 function mecDuForm(){
@@ -507,7 +538,8 @@ function majVerif(){
   info.hidden = !f.auto;
   if(f.auto) info.textContent = `Repris de ton dernier relevé chez ${f.auto.enseigne} (${fmtDate(f.auto.date)}) : vérifie le prix.`;
   document.getElementById('resultat').innerHTML = carteResultat();
-  const s = document.getElementById('btnSave'); if(s) s.onclick = enregistrer;
+  const s = document.getElementById('btnSave'); if(s) s.onclick = () => enregistrer(false);
+  const ac = document.getElementById('btnAchat'); if(ac) ac.onclick = () => enregistrer(true);
   const sh = document.getElementById('btnShare'); if(sh) sh.onclick = () => partager(releveDuForm(), declDuForm(), f.prod.trim());
   const an = document.getElementById('btnAnnuler'); if(an) an.onclick = finCorrection;
 }
@@ -525,11 +557,13 @@ function carteResultat(){
       <button class="btn" id="btnSave">Enregistrer la correction</button>
       <button class="btn sec" id="btnAnnuler">Annuler</button>
     </div>`;
-  return blocVerdict(releveDuForm(), declDuForm()) + `
+  const r = releveDuForm(), n = calc(r.prix, r.mec).n;
+  return blocVerdict(r, declDuForm()) + `
     <div class="btns">
-      <button class="btn" id="btnSave">Enregistrer</button>
-      <button class="btn sec" id="btnShare">Partager</button>
-    </div>`;
+      <button class="btn" id="btnAchat">Je l'achète · +${n}</button>
+      <button class="btn sec" id="btnSave">Noter le prix</button>
+    </div>
+    <p style="text-align:center;margin-top:14px"><button class="link" id="btnShare">Partager cette promo</button></p>`;
 }
 
 function blocVerdict(r, d){
@@ -554,6 +588,12 @@ function blocVerdict(r, d){
   if(mp && mp.r.id !== r.id && mp.pu < e.pu && r.mec.type !== 'aucune'){
     h += `<div class="verdict v-info"><p>Ta meilleure promo vue pour cette déclinaison : ${fmtPU(mp.pu,u)} chez ${esc(mp.r.enseigne)} (${esc(mecTxt(mp.r.mec))}, ${fmtDate(mp.r.date)}).</p></div>`;
   }
+  if(aStock(d)){
+    const es = etatStock(d);
+    if(es === 'haut') h += `<div class="verdict v-jaune"><p><b>Réserve pleine :</b> tu en as déjà ${d.stock} à la maison. Pas besoin d'en racheter.</p></div>`;
+    else if(es === 'bas') h += `<div class="verdict v-info"><p><b>${d.stock ? `Plus que ${d.stock} en réserve` : 'Plus rien en réserve'}</b> : c'est le moment d'en racheter.</p></div>`;
+    else h += `<div class="verdict v-info"><p>En réserve : <b>${d.stock}</b>.</p></div>`;
+  }
   if(e.surplus){
     const s = e.surplus;
     h += `<div class="verdict v-info">
@@ -564,7 +604,7 @@ function blocVerdict(r, d){
   return h;
 }
 
-function enregistrer(){
+function enregistrer(achat){
   if(!formComplet()) return;
   let p = trouverProduit(f.prod);
   if(!p){ p = {id:uid(), nom:f.prod.trim()}; data.produits.push(p); }
@@ -572,7 +612,7 @@ function enregistrer(){
   if(!d.id){ d = {...d, id:uid(), produitId:p.id}; data.declinaisons.push(d); }
   const r = releveDuForm(); r.declId = d.id;
   if(f.editId){
-    r.date = f.editDate; if(f.editVia) r.via = f.editVia;
+    r.date = f.editDate; if(f.editVia) r.via = f.editVia; if(f.editAchat) r.achat = f.editAchat;
     const i = data.releves.findIndex(x => x.id === f.editId);
     if(i >= 0) data.releves[i] = r; else data.releves.push(r);
     sauver(); toast('Relevé corrigé');
@@ -581,7 +621,11 @@ function enregistrer(){
   }
   r.id = uid();
   data.releves.push(r);
-  sauver(); toast('Relevé enregistré');
+  if(achat){
+    const n = calc(r.prix, r.mec).n;
+    r.achat = n; d.stock = (d.stock || 0) + n;
+    sauver(); toast(`+${n} en réserve (${d.stock} au total)`);
+  } else { sauver(); toast('Prix noté'); }
   f = formVide(f); cleZone = null; rendre();
 }
 // Quitte la correction et revient sur la fiche de la déclinaison
@@ -638,10 +682,10 @@ function vueProduits(){
   if(!data.produits.length) return `<p class="empty">Aucun produit pour l'instant.<br>Ils apparaissent ici dès ton premier relevé.</p>`;
   return [...data.produits].sort((a,b) => a.nom.localeCompare(b.nom, 'fr')).map(p => {
     const ds = declsDe(p.id);
-    return `<button class="item" data-prod="${p.id}">
+    return `<div class="item" role="button" tabindex="0" data-prod="${p.id}">
       <b>${esc(p.nom)}</b>
-      ${ds.map(d => `<div class="ligne"><span>${esc(libDecl(d))}</span>${htmlPrix(prixCarte(d))}</div>`).join('')}
-    </button>`;
+      ${ds.map(d => `<div class="ligne"><span>${esc(libDecl(d))}</span>${htmlPrix(prixCarte(d))}</div>${htmlStock(d)}`).join('')}
+    </div>`;
   }).join('');
 }
 function vueProduit(id){
@@ -656,14 +700,15 @@ function vueProduit(id){
     <input id="pNom" value="${esc(p.nom)}">
   </div>
   <h2>Déclinaisons <span class="hint">(prix habituel le plus bas d'abord)</span></h2>
-  ${ds.map(({d, ref, mp, nb}) => `<button class="item" data-decl="${d.id}">
-      <div class="ligne" style="margin-top:0"><span>
-      <b>${esc(libDecl(d))}</b>
-      ${ref ? `<br>Prix habituel le plus bas : ${fmtPU(ref.pu,d.unite)} · ${esc(ref.r.enseigne)}` : ''}
-      ${mp && ref && mp.pu < ref.pu ? `<br>Meilleure promo : ${fmtPU(mp.pu,d.unite)} · ${esc(mp.r.enseigne)}` : ''}
-      <br><span class="muted">${nb} relevé${nb>1?'s':''}</span>
-      </span>${htmlPrix(prixCarte(d))}</div>
-    </button>`).join('') || '<p class="muted">Aucune déclinaison.</p>'}
+  ${ds.map(({d, ref, mp, nb}) => `<div class="item" role="button" tabindex="0" data-decl="${d.id}">
+      <div class="ligne" style="margin-top:0"><b>${esc(libDecl(d))}</b>${htmlPrix(prixCarte(d))}</div>
+      <div class="details">
+      ${ref ? `<div>Prix habituel le plus bas : <span class="nw">${fmtPU(ref.pu,d.unite)}</span> · ${esc(ref.r.enseigne)}</div>` : ''}
+      ${mp && ref && mp.pu < ref.pu ? `<div>Meilleure promo vue : <span class="nw">${fmtPU(mp.pu,d.unite)}</span> · ${esc(mp.r.enseigne)}</div>` : ''}
+      <div class="muted">${nb} relevé${nb>1?'s':''}</div>
+      </div>
+      ${htmlStock(d)}
+    </div>`).join('') || '<p class="muted">Aucune déclinaison.</p>'}
   <button class="btn" id="pNouvelle">+ Ajouter une déclinaison</button>
   <button class="btn danger" id="pSuppr">Supprimer ce produit</button>`;
 }
@@ -705,13 +750,26 @@ function vueDecl(id){
     <input id="dNomE" value="${esc(d.nom)}" placeholder="(aucune)">
     <label for="dBesoin">Il t'en faut d'habitude</label>
     <input id="dBesoin" inputmode="numeric" value="${d.besoin||1}">
-    <p class="muted" style="margin-bottom:0">${contTxt(d)}, comparé au ${UNITES[d.unite].aff}.</p>
+    <p class="muted" style="margin-bottom:0">${contTxt(d)}, prix comparé par ${UNITES[d.unite].aff}.</p>
+  </div>
+  <h2>Réserve</h2>
+  <div class="card">
+    <div class="stockedit">
+      <button class="moins" id="sMoins" aria-label="Retirer un">−1</button>
+      <span class="big">${d.stock ?? 0}</span>
+      <button class="moins" id="sPlus" aria-label="Ajouter un">+1</button>
+    </div>
+    <p class="muted" style="text-align:center;margin:6px 0 0">Tes achats s'ajoutent tout seuls. Ces boutons servent à corriger, ou à compter ce que tu as déjà.</p>
+    <div class="row">
+      <div><label for="sBas">À racheter dès</label><input id="sBas" inputmode="numeric" value="${d.seuilBas ?? 1}"></div>
+      <div><label for="sHaut">Pleine dès</label><input id="sHaut" inputmode="numeric" placeholder="aucune" value="${d.seuilHaut ?? ''}"></div>
+    </div>
   </div>
   <h2>Relevés <span class="hint">(du moins cher au plus cher)</span></h2>
   <div class="card">
     ${rels.map(({r,pu}) => `<div class="rel">
       <div class="txt">
-        <b>${esc(r.enseigne)}</b>${ref && ref.r.id === r.id ? '<span class="tag">réf.</span>' : ''}${r.via==='proche' ? '<span class="tag">d’un proche</span>' : ''}<br>
+        <b>${esc(r.enseigne)}</b>${ref && ref.r.id === r.id ? '<span class="tag">réf.</span>' : ''}${r.achat ? `<span class="tag">acheté ×${r.achat}</span>` : ''}${r.via==='proche' ? '<span class="tag">d’un proche</span>' : ''}<br>
         À payer : <b>${eur(calc(r.prix, r.mec).total)}</b>${calc(r.prix, r.mec).n > 1 ? ` pour ${calc(r.prix, r.mec).n}` : ''}<br>
         <span class="muted">${esc(mecTxt(r.mec))} · prix normal ${eur(r.prix)} · ${fmtDate(r.date)}${etatPromo(r)}</span>
         <br><button class="link" data-edit="${r.id}">Modifier</button> &nbsp; <button class="link" data-share="${r.id}">Partager</button>${peutReactiver(r) ? ` &nbsp; <button class="link" data-react="${r.id}">Réactiver</button>` : ''}
@@ -730,8 +788,21 @@ function brancherDecl(){
   document.getElementById('dNomE').onchange = e => { d.nom = e.target.value.trim(); sauver(); toast('Enregistré'); };
   document.getElementById('dBesoin').onchange = e => { const v = Math.round(num(e.target.value)); if(v >= 1){ d.besoin = v; sauver(); toast('Enregistré'); } };
   document.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
-    if(confirm('Supprimer ce relevé ?')){ data.releves = data.releves.filter(r => r.id !== b.dataset.del); sauver(); rendre(); }
+    const r = data.releves.find(x => x.id === b.dataset.del); if(!r) return;
+    if(confirm(r.achat ? `Supprimer ce relevé ? Son achat (${r.achat}) sera retiré de ta réserve.` : 'Supprimer ce relevé ?')){
+      if(r.achat && aStock(d)) d.stock = Math.max(0, d.stock - r.achat);
+      data.releves = data.releves.filter(x => x.id !== r.id); sauver(); rendre();
+    }
   });
+  const majStock = v => { d.stock = Math.max(0, v); sauver(); rendre(); };
+  document.getElementById('sMoins').onclick = () => majStock((d.stock || 0) - 1);
+  document.getElementById('sPlus').onclick = () => majStock((d.stock || 0) + 1);
+  document.getElementById('sBas').onchange = e => { const v = Math.round(num(e.target.value)); if(v >= 0){ d.seuilBas = v; sauver(); toast('Enregistré'); } };
+  document.getElementById('sHaut').onchange = e => {
+    const t = e.target.value.trim();
+    if(!t){ delete d.seuilHaut; sauver(); toast('Pas d\'alerte « réserve pleine »'); return; }
+    const v = Math.round(num(t)); if(v >= 1){ d.seuilHaut = v; sauver(); toast('Enregistré'); }
+  };
   document.querySelectorAll('[data-share]').forEach(b => b.onclick = () => {
     const r = data.releves.find(x => x.id === b.dataset.share); if(r) partager(r, d, p ? p.nom : '');
   });
@@ -820,6 +891,7 @@ function rendre(){
   } else {
     app.innerHTML = vueSauve(); brancherSauve();
   }
+  app.querySelectorAll('[data-moins]').forEach(b => b.onclick = e => { e.stopPropagation(); retirerUn(b.dataset.moins); });
 }
 function brancherChips(groupe){
   groupe.addEventListener('click', ev => {
