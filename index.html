@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Scorte</title>
+<meta name="description" content="Est-ce que cette promo vaut vraiment le coup ?">
+<meta name="theme-color" content="#f6eedd">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Scorte">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<style>
+:root{
+  --bg:#f6eedd;--card:#fffaf0;--ink:#3a2e1f;--muted:#76664f;--ocre:#b9781f;--ocre-l:#f0dcb6;--line:#e3d5bb;
+  --vert:#2b6e35;--vert-l:#dcefd8;--jaune:#80590a;--jaune-l:#f8ebc4;--rouge:#9c2f27;--rouge-l:#f6dad5;--bleu-l:#e6eef6;--bleu:#2c4f75;
+}
+*{box-sizing:border-box}
+html{font-size:18px;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;line-height:1.4;padding-bottom:calc(80px + env(safe-area-inset-bottom))}
+header{padding:calc(14px + env(safe-area-inset-top)) 16px 4px;max-width:640px;margin:0 auto}
+h1{margin:0;font-size:1.6rem}
+h1 span{color:var(--ocre)}
+h2{font-size:1.2rem;margin:18px 0 6px}
+main{padding:0 16px;max-width:640px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:12px 0}
+label{display:block;font-weight:600;margin:14px 0 6px}
+label:first-child{margin-top:0}
+.hint{font-weight:400;color:var(--muted)}
+input,select{width:100%;font-size:1rem;padding:12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);font-family:inherit}
+input:focus,select:focus{outline:2px solid var(--ocre);outline-offset:0}
+.row{display:flex;gap:10px}
+.row>div{flex:1;min-width:0}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:9px 14px;font-size:1rem;color:var(--ink);font-family:inherit;cursor:pointer}
+.chip.on{background:var(--ocre);border-color:var(--ocre);color:#fff}
+.btn{display:block;width:100%;padding:14px;border-radius:12px;border:none;background:var(--ocre);color:#fff;font-weight:700;font-size:1rem;margin-top:10px;font-family:inherit;cursor:pointer}
+.btn.sec{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.btn.danger{background:#fff;color:var(--rouge);border:1px solid var(--rouge-l)}
+.btn:disabled{opacity:.45;cursor:default}
+.btns{display:flex;gap:10px}.btns .btn{flex:1}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:5}
+nav button{flex:1;background:none;border:none;padding:12px 4px;font-size:1rem;color:var(--muted);font-family:inherit;cursor:pointer}
+nav button.on{color:var(--ocre);font-weight:700}
+.verdict{border-radius:14px;padding:14px;margin:12px 0}
+.verdict p{margin:4px 0}
+.vt{font-weight:700;font-size:1.1rem}
+.big{font-size:1.6rem;font-weight:700;margin:4px 0}
+.v-vert{background:var(--vert-l);color:var(--vert)}
+.v-jaune{background:var(--jaune-l);color:var(--jaune)}
+.v-rouge{background:var(--rouge-l);color:var(--rouge)}
+.v-neutre{background:var(--ocre-l);color:var(--ink)}
+.v-info{background:var(--bleu-l);color:var(--bleu)}
+.muted{color:var(--muted)}
+.empty{text-align:center;color:var(--muted);padding:24px 8px}
+.item{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:10px 0;color:var(--ink);font:inherit;cursor:pointer}
+.item b{font-size:1.05rem}
+.rel{display:flex;gap:10px;align-items:flex-start;border-top:1px solid var(--line);padding:10px 0}
+.rel:first-child{border-top:none}
+.rel .txt{flex:1;min-width:0}
+.rel .pu{font-weight:700;white-space:nowrap}
+.tag{display:inline-block;background:var(--ocre-l);border-radius:6px;padding:1px 7px;font-size:.85rem;margin-left:4px}
+.x{background:none;border:none;color:var(--muted);font-size:1.3rem;padding:0 4px;cursor:pointer}
+.link{background:none;border:none;color:var(--ocre);font:inherit;font-weight:600;padding:0;cursor:pointer}
+#toast{position:fixed;left:16px;right:16px;bottom:calc(90px + env(safe-area-inset-bottom));max-width:600px;margin:0 auto;background:var(--ink);color:#fff;padding:12px 16px;border-radius:12px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:10;text-align:center}
+#toast.show{opacity:1}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<header><h1>Scorte</h1></header>
+<main id="app"></main>
+<nav>
+  <button data-tab="verif" class="on">Vérifier</button>
+  <button data-tab="produits">Mes produits</button>
+  <button data-tab="sauve">Sauvegarde</button>
+</nav>
+<div id="toast"></div>
+
+<script>
+// ---------- Données ----------
+// produits : {id, nom}
+// declinaisons : {id, produitId, nom, unite, contenance, besoin}
+// releves : {id, declId, enseigne, prix, mec, source, fin, date, via?}
+const KEY = 'scorte.v1';
+const ENSEIGNES = ['Delhaize','Kruidvat','Action','Colruyt','Aldi','Lidl','Carrefour'];
+const UNITES = {
+  g:      {saisie:'grammes', aff:'kg',      f:1000},
+  ml:     {saisie:'ml',      aff:'L',       f:1000},
+  lavage: {saisie:'lavages', aff:'lavage',  f:1},
+  rouleau:{saisie:'rouleaux',aff:'rouleau', f:1},
+  piece:  {saisie:'pièces',  aff:'pièce',   f:1},
+  dose:   {saisie:'doses',   aff:'dose',    f:1}
+};
+const PRESETS = [
+  {id:'aucune', label:'Aucune'},
+  {id:'1+1',    label:'1+1'},
+  {id:'2+1',    label:'2+1'},
+  {id:'2+2',    label:'2+2'},
+  {id:'neme',   label:'2e à -50 %'},
+  {id:'pct',    label:'-x %'},
+  {id:'promo',  label:'Prix barré'},
+  {id:'lot',    label:'x pour y €'}
+];
+
+let data = charger();
+function charger(){
+  try{
+    const d = JSON.parse(localStorage.getItem(KEY));
+    if(d && Array.isArray(d.produits) && Array.isArray(d.declinaisons) && Array.isArray(d.releves)) return d;
+  }catch(e){}
+  return {produits:[], declinaisons:[], releves:[]};
+}
+function sauver(){ try{ localStorage.setItem(KEY, JSON.stringify(data)); }catch(e){ toast("Impossible d'enregistrer sur ce téléphone"); } }
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+const aujourdhui = () => new Date().toISOString().slice(0,10);
+
+// ---------- Outils ----------
+const num = v => { const n = parseFloat(String(v ?? '').replace(',', '.').trim()); return isFinite(n) ? n : NaN; };
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const eur = x => x.toLocaleString('fr-BE', {style:'currency', currency:'EUR'});
+const fmtNum = n => String(n).replace('.', ',');
+function fmtPU(pu, unite){
+  const d = pu < 0.1 ? 3 : 2;
+  return pu.toLocaleString('fr-BE', {minimumFractionDigits:d, maximumFractionDigits:d}) + ' €/' + UNITES[unite].aff;
+}
+const fmtDate = iso => { if(!iso) return ''; const [y,m,d] = iso.split('-'); return `${d}/${m}/${y.slice(2)}`; };
+const norm = s => String(s||'').trim().toLowerCase().replace(/\s+/g,' ');
+function toast(msg){ const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(()=>t.classList.remove('show'), 2600); }
+const contTxt = d => `${fmtNum(d.contenance)} ${UNITES[d.unite].saisie}`;
+const libDecl = d => d.nom ? `${d.nom} · ${contTxt(d)}` : contTxt(d);
+
+// ---------- Accès ----------
+const trouverProduit = nom => data.produits.find(p => norm(p.nom) === norm(nom));
+const declsDe = prodId => data.declinaisons.filter(d => d.produitId === prodId);
+const relevesDe = declId => data.releves.filter(r => r.declId === declId);
+const declParId = id => data.declinaisons.find(d => d.id === id);
+const prodParId = id => data.produits.find(p => p.id === id);
+function enseignesConnues(){ const s = new Set(ENSEIGNES); data.releves.forEach(r => s.add(r.enseigne)); return [...s]; }
+
+// ---------- Calculs ----------
+function calc(prix, mec){
+  switch(mec.type){
+    case 'promo': return {n:1, total:mec.prixPromo};
+    case 'pct':   return {n:1, total:prix * (1 - mec.pct/100)};
+    case 'plus':  return {n:mec.a + mec.b, total:prix * mec.a};
+    case 'neme':  return {n:mec.n, total:prix * (mec.n - 1) + prix * (1 - mec.pct/100)};
+    case 'lot':   return {n:mec.x, total:mec.y};
+    default:      return {n:1, total:prix};
+  }
+}
+function mecValide(m){
+  switch(m.type){
+    case 'promo': return m.prixPromo > 0;
+    case 'pct':   return m.pct > 0 && m.pct < 100;
+    case 'plus':  return Number.isInteger(m.a) && Number.isInteger(m.b) && m.a >= 1 && m.b >= 1;
+    case 'neme':  return Number.isInteger(m.n) && m.n >= 2 && m.pct > 0 && m.pct <= 100;
+    case 'lot':   return Number.isInteger(m.x) && m.x >= 1 && m.y > 0;
+    default:      return true;
+  }
+}
+function mecTxt(m){
+  switch(m.type){
+    case 'promo': return `prix barré : ${eur(m.prixPromo)}`;
+    case 'pct':   return `-${fmtNum(m.pct)} %`;
+    case 'plus':  return `${m.a}+${m.b}`;
+    case 'neme':  return m.pct >= 100 ? `${m.n}e gratuit` : `${m.n}e à -${fmtNum(m.pct)} %`;
+    case 'lot':   return `${m.x} pour ${eur(m.y)}`;
+    default:      return 'prix normal';
+  }
+}
+const parUnite = d => UNITES[d.unite].f / d.contenance;
+const puNormal = (r, d) => r.prix * parUnite(d);
+function puEffectif(r, d){ const {n,total} = calc(r.prix, r.mec); return total / n * parUnite(d); }
+
+// Meilleur prix habituel (hors promo) connu pour cette déclinaison, toutes enseignes
+function reference(d, exclureId, enPlus){
+  let best = null;
+  const liste = (d.id ? relevesDe(d.id) : []).filter(x => x.id !== exclureId);
+  if(enPlus) liste.push(enPlus);
+  for(const r of liste){ const pu = puNormal(r, d); if(!best || pu < best.pu) best = {pu, r}; }
+  return best;
+}
+function meilleurePromo(d){
+  let best = null;
+  for(const r of relevesDe(d.id).filter(x => x.mec.type !== 'aucune')){
+    const pu = puEffectif(r, d); if(!best || pu < best.pu) best = {pu, r};
+  }
+  return best;
+}
+function evaluer(r, d){
+  const besoin = d.besoin || 1;
+  const {n, total} = calc(r.prix, r.mec);
+  const pu = total / n * parUnite(d);
+  const puN = puNormal(r, d);
+  const autres = d.id ? relevesDe(d.id).filter(x => x.id !== r.id) : [];
+  const ref = reference(d, r.id, r);
+  let classe;
+  if(!autres.length) classe = 'premier';
+  else if(pu <= ref.pu * 1.0001) classe = 'vert';
+  else if(pu <= ref.pu * 1.10) classe = 'jaune';
+  else classe = 'rouge';
+  const res = {n, total, pu, puN, ref, classe, remise: 1 - total / (n * r.prix)};
+  if(n > besoin) res.surplus = {nb: n - besoin, besoin, puSiPerdu: total / besoin * parUnite(d)};
+  return res;
+}
+
+// ---------- Partage par lien ----------
+function enc(o){ const b = new TextEncoder().encode(JSON.stringify(o)); let s=''; b.forEach(c => s += String.fromCharCode(c)); return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+function dec(t){ t = t.replace(/-/g,'+').replace(/_/g,'/'); const s = atob(t); return JSON.parse(new TextDecoder().decode(Uint8Array.from(s, c => c.charCodeAt(0)))); }
+async function partager(r, d, prodNom){
+  const o = {v:2, produit:prodNom, decl:d.nom||'', unite:d.unite, contenance:d.contenance,
+             enseigne:r.enseigne, prix:r.prix, mec:r.mec, source:r.source, fin:r.fin||'', date:r.date};
+  const url = location.origin + location.pathname + '#p=' + enc(o);
+  const texte = `${prodNom} (${libDecl(d)}) chez ${r.enseigne}, ${mecTxt(r.mec)} : ${fmtPU(puEffectif(r, d), d.unite)}${r.fin ? ', jusqu’au ' + fmtDate(r.fin) : ''}.`;
+  if(navigator.share){ try{ await navigator.share({title:'Scorte', text:texte, url}); }catch(e){} }
+  else { try{ await navigator.clipboard.writeText(texte + ' ' + url); toast('Lien copié'); } catch(e){ prompt('Copie ce lien :', url); } }
+}
+let entrant = null;
+function lireLien(){
+  if(!location.hash.startsWith('#p=')) return;
+  try{
+    const o = dec(location.hash.slice(3));
+    if(o && o.produit && UNITES[o.unite] && o.prix > 0 && o.contenance > 0 && o.mec && mecValide(o.mec)) entrant = o;
+  }catch(e){ toast('Ce lien n’a pas pu être lu'); }
+  history.replaceState(null, '', location.pathname);
+}
+function trouverDecl(prodId, nom, unite, contenance){
+  return declsDe(prodId).find(d => norm(d.nom) === norm(nom) && d.unite === unite && d.contenance === contenance);
+}
+
+// ---------- Formulaire « Vérifier » ----------
+let f = formVide();
+function formVide(garder){
+  return {prod:'', declSel:'', dNom:'', unite:'piece', contenance:'', besoin:'1',
+          enseigne: garder?.enseigne || '', autreEns:'', prix:'',
+          preset:'aucune', a:'1', b:'1', n:'2', pctN:'50', pct:'30', prixPromo:'', x:'3', y:'',
+          source: garder?.source || 'rayon', fin:'', auto:null};
+}
+function mecDuForm(){
+  switch(f.preset){
+    case '1+1': case '2+1': case '2+2': return {type:'plus', a:num(f.a), b:num(f.b)};
+    case 'neme':  return {type:'neme', n:num(f.n), pct:num(f.pctN)};
+    case 'pct':   return {type:'pct', pct:num(f.pct)};
+    case 'promo': return {type:'promo', prixPromo:num(f.prixPromo)};
+    case 'lot':   return {type:'lot', x:num(f.x), y:num(f.y)};
+    default:      return {type:'aucune'};
+  }
+}
+// La déclinaison visée par le formulaire : existante, ou provisoire (id null)
+function declDuForm(){
+  const p = trouverProduit(f.prod);
+  if(p && f.declSel && f.declSel !== '__new'){ const d = declParId(f.declSel); if(d && d.produitId === p.id) return d; }
+  return {id:null, produitId: p ? p.id : null, nom:f.dNom.trim(), unite:f.unite,
+          contenance:num(f.contenance), besoin: Math.max(1, Math.round(num(f.besoin)) || 1)};
+}
+function releveDuForm(){
+  return {id:null, enseigne: f.enseigne === '__autre' ? f.autreEns.trim() : f.enseigne,
+          prix:num(f.prix), mec:mecDuForm(), source:f.source, fin:f.fin, date:aujourdhui()};
+}
+function formComplet(){
+  if(!f.prod.trim()) return false;
+  const p = trouverProduit(f.prod);
+  if(p && declsDe(p.id).length && !f.declSel) return false;
+  const d = declDuForm(), r = releveDuForm();
+  return d.contenance > 0 && r.enseigne && r.prix > 0 && mecValide(r.mec);
+}
+// Choisit la déclinaison par défaut quand le produit change
+function ajusterDecl(){
+  const p = trouverProduit(f.prod);
+  if(!p){ if(f.declSel !== '__new') f.declSel = ''; return; }
+  const ds = declsDe(p.id);
+  if(f.declSel === '__new') return;
+  if(!ds.some(d => d.id === f.declSel)) f.declSel = ds.length === 1 ? ds[0].id : '';
+}
+// Reprend le dernier prix connu de la déclinaison (dans l'enseigne choisie si possible)
+function preremplir(){
+  const d = declDuForm();
+  let src = null;
+  if(d.id){
+    const rels = relevesDe(d.id).sort((a,b) => (b.date + b.id).localeCompare(a.date + a.id));
+    const ens = f.enseigne && f.enseigne !== '__autre' ? f.enseigne : null;
+    src = ens ? rels.find(x => x.enseigne === ens) : rels[0];
+  }
+  const libre = !f.prix || (f.auto && f.auto.prix);
+  if(src && libre){
+    f.prix = fmtNum(src.prix);
+    if(!f.enseigne) f.enseigne = src.enseigne;
+    f.auto = {prix:true, enseigne:src.enseigne, date:src.date};
+  } else if(!src && f.auto){ f.prix = ''; f.auto = null; }
+  const ip = document.getElementById('prix'); if(ip) ip.value = f.prix;
+  document.querySelectorAll('[data-champ="enseigne"] .chip').forEach(c => c.classList.toggle('on', c.dataset.v === f.enseigne));
+}
+
+function vueVerif(){
+  const ens = enseignesConnues();
+  return `
+  ${entrant ? carteEntrante() : ''}
+  <div class="card">
+    <label for="prod">Produit <span class="hint">(marque et gamme)</span></label>
+    <input id="prod" list="prodList" autocomplete="off" placeholder="ex. Dash Pods 3en1" value="${esc(f.prod)}">
+    <datalist id="prodList">${data.produits.map(p => `<option value="${esc(p.nom)}">`).join('')}</datalist>
+    <div id="declZone"></div>
+
+    <label>Enseigne</label>
+    <div class="chips" data-champ="enseigne">
+      ${ens.map(e => `<button class="chip${f.enseigne===e?' on':''}" data-v="${esc(e)}">${esc(e)}</button>`).join('')}
+      <button class="chip${f.enseigne==='__autre'?' on':''}" data-v="__autre">Autre…</button>
+    </div>
+    <input id="autreEns" placeholder="Nom de l'enseigne" value="${esc(f.autreEns)}" style="margin-top:8px" ${f.enseigne==='__autre'?'':'hidden'}>
+
+    <label for="prix">Prix normal <span class="hint">(1 exemplaire)</span></label>
+    <input id="prix" inputmode="decimal" placeholder="€" value="${esc(f.prix)}">
+    <p class="muted" id="autoInfo" style="margin:8px 0 0" hidden></p>
+
+    <label>Promo</label>
+    <div class="chips" data-champ="preset">
+      ${PRESETS.map(p => `<button class="chip${f.preset===p.id?' on':''}" data-v="${p.id}">${p.label}</button>`).join('')}
+    </div>
+    <div class="row" data-mec="plus">
+      <div><label for="a">Tu paies</label><input id="a" inputmode="numeric" value="${esc(f.a)}"></div>
+      <div><label for="b">Offerts</label><input id="b" inputmode="numeric" value="${esc(f.b)}"></div>
+    </div>
+    <div class="row" data-mec="neme">
+      <div><label for="n">Le combientième ?</label><input id="n" inputmode="numeric" value="${esc(f.n)}"></div>
+      <div><label for="pctN">Remise (%)</label><input id="pctN" inputmode="decimal" value="${esc(f.pctN)}"></div>
+    </div>
+    <div data-mec="pct"><label for="pct">Remise (%)</label><input id="pct" inputmode="decimal" value="${esc(f.pct)}"></div>
+    <div data-mec="promo"><label for="prixPromo">Prix en promo</label><input id="prixPromo" inputmode="decimal" placeholder="€" value="${esc(f.prixPromo)}"></div>
+    <div class="row" data-mec="lot">
+      <div><label for="x">Nombre</label><input id="x" inputmode="numeric" value="${esc(f.x)}"></div>
+      <div><label for="y">Pour (€)</label><input id="y" inputmode="decimal" value="${esc(f.y)}"></div>
+    </div>
+
+    <label>Vu…</label>
+    <div class="chips" data-champ="source">
+      <button class="chip${f.source==='rayon'?' on':''}" data-v="rayon">En rayon</button>
+      <button class="chip${f.source==='folder'?' on':''}" data-v="folder">Dans le folder</button>
+    </div>
+    <label for="fin">Promo valable jusqu'au <span class="hint">(facultatif)</span></label>
+    <input id="fin" type="date" value="${esc(f.fin)}">
+  </div>
+  <div id="resultat"></div>`;
+}
+
+// Zone déclinaison : choix parmi les existantes, ou fiche d'une nouvelle
+let cleZone = null;
+function rendreDeclZone(){
+  const p = trouverProduit(f.prod);
+  const ds = p ? declsDe(p.id) : [];
+  const nouvelle = !p || f.declSel === '__new' || !ds.length;
+  const cle = [p ? p.id : (f.prod.trim() ? 'new' : ''), f.declSel, ds.length].join('|');
+  if(cle === cleZone) return;
+  cleZone = cle;
+  const z = document.getElementById('declZone');
+  if(!f.prod.trim()){ z.innerHTML = ''; return; }
+  let h = '';
+  if(ds.length){
+    h += `<label>Déclinaison</label><div class="chips" data-champ="declSel">
+      ${ds.map(d => `<button class="chip${f.declSel===d.id?' on':''}" data-v="${d.id}">${esc(libDecl(d))}</button>`).join('')}
+      <button class="chip${f.declSel==='__new'?' on':''}" data-v="__new">+ Nouvelle</button></div>`;
+  }
+  if(nouvelle){
+    h += `<p class="muted" style="margin:10px 0 0">${p ? 'Nouvelle déclinaison' : 'Nouveau produit'} : précise la variante et le format.</p>
+      <label for="dNom">Variante <span class="hint">(facultatif : parfum, couleur…)</span></label>
+      <input id="dNom" placeholder="ex. Color" value="${esc(f.dNom)}">
+      <label>On compare au…</label>
+      <div class="chips" data-champ="unite">
+        ${Object.entries(UNITES).map(([k,u]) => `<button class="chip${f.unite===k?' on':''}" data-v="${k}">${u.aff}</button>`).join('')}
+      </div>
+      <div class="row">
+        <div><label for="contenance" id="lblCont">Contenance <span class="hint">(${UNITES[f.unite].saisie})</span></label>
+          <input id="contenance" inputmode="decimal" value="${esc(f.contenance)}"></div>
+        <div><label for="besoin">Il t'en faut d'habitude</label>
+          <input id="besoin" inputmode="numeric" value="${esc(f.besoin)}"></div>
+      </div>`;
+  }
+  z.innerHTML = h;
+  ['dNom','contenance','besoin'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.addEventListener('input', () => { f[id] = el.value; majVerif(); });
+  });
+  z.querySelectorAll('[data-champ]').forEach(brancherChips);
+}
+
+function majVerif(){
+  rendreDeclZone();
+  const lc = document.getElementById('lblCont');
+  if(lc) lc.innerHTML = `Contenance <span class="hint">(${UNITES[f.unite].saisie})</span>`;
+  document.getElementById('autreEns').hidden = f.enseigne !== '__autre';
+  const groupe = {'1+1':'plus','2+1':'plus','2+2':'plus'}[f.preset] || f.preset;
+  document.querySelectorAll('[data-mec]').forEach(el => el.hidden = el.dataset.mec !== groupe);
+  const info = document.getElementById('autoInfo');
+  info.hidden = !f.auto;
+  if(f.auto) info.textContent = `Repris de ton dernier relevé chez ${f.auto.enseigne} (${fmtDate(f.auto.date)}) : vérifie le prix.`;
+  document.getElementById('resultat').innerHTML = carteResultat();
+  const s = document.getElementById('btnSave'); if(s) s.onclick = enregistrer;
+  const sh = document.getElementById('btnShare'); if(sh) sh.onclick = () => partager(releveDuForm(), declDuForm(), f.prod.trim());
+}
+
+function carteResultat(){
+  if(!formComplet()){
+    const p = trouverProduit(f.prod);
+    const msg = p && declsDe(p.id).length && !f.declSel
+      ? 'Choisis la déclinaison : le verdict s\'affiche ici.'
+      : 'Remplis le produit, la contenance, l\'enseigne et le prix : le verdict s\'affiche ici.';
+    return `<p class="empty">${msg}</p>`;
+  }
+  return blocVerdict(releveDuForm(), declDuForm()) + `
+    <div class="btns">
+      <button class="btn" id="btnSave">Enregistrer</button>
+      <button class="btn sec" id="btnShare">Partager</button>
+    </div>`;
+}
+
+function blocVerdict(r, d){
+  const e = evaluer(r, d), u = d.unite;
+  const titres = {premier:'🟠 Premier relevé', vert:'🟢 Ça vaut le coup', jaune:'🟡 Bof', rouge:'🔴 Pas la peine'};
+  const refR = e.ref.r, refIci = refR === r;
+  let refTxt;
+  if(e.classe === 'premier') refTxt = `Pas encore de comparaison pour cette déclinaison. Son prix normal ici (${fmtPU(e.puN,u)}) devient ta référence.`;
+  else if(refIci) refTxt = `${esc(r.enseigne)} a le prix habituel le plus bas que tu connaisses (${fmtPU(e.ref.pu,u)}).`;
+  else if(e.classe === 'vert') refTxt = `Moins cher que le meilleur prix habituel : ${fmtPU(e.ref.pu,u)} chez ${esc(refR.enseigne)}.`;
+  else if(e.classe === 'jaune') refTxt = `À peine mieux, voire pareil : le prix habituel chez ${esc(refR.enseigne)} est de ${fmtPU(e.ref.pu,u)}.`;
+  else refTxt = `Chez ${esc(refR.enseigne)}, sans promo, c'est ${fmtPU(e.ref.pu,u)} (${Math.round((1 - e.ref.pu/e.pu)*100)} % moins cher).`;
+
+  let h = `<div class="verdict v-${e.classe==='premier'?'neutre':e.classe}">
+    <div class="vt">${titres[e.classe]}</div>
+    <div class="big">${fmtPU(e.pu,u)}</div>
+    <p>${e.n > 1 ? `Tu en prends ${e.n} pour ${eur(e.total)}` : `Tu paies ${eur(e.total)}`}${e.remise > 0.005 ? ` · -${Math.round(e.remise*100)} % sur le prix normal` : ''}</p>
+    <p>${refTxt}</p>
+  </div>`;
+  const mp = d.id ? meilleurePromo(d) : null;
+  if(mp && mp.r.id !== r.id && mp.pu < e.pu && r.mec.type !== 'aucune'){
+    h += `<div class="verdict v-info"><p>Ta meilleure promo vue pour cette déclinaison : ${fmtPU(mp.pu,u)} chez ${esc(mp.r.enseigne)} (${esc(mecTxt(mp.r.mec))}, ${fmtDate(mp.r.date)}).</p></div>`;
+  }
+  if(e.surplus){
+    const s = e.surplus;
+    h += `<div class="verdict v-info">
+      <p><b>Tu dois en prendre ${e.n}</b>, il t'en faut d'habitude ${s.besoin}.</p>
+      <p>Si ${s.nb > 1 ? 'les exemplaires en trop ne servent pas' : 'l’exemplaire en trop ne sert pas'}, ça te revient à ${fmtPU(s.puSiPerdu,u)}.</p>
+    </div>`;
+  }
+  return h;
+}
+
+function enregistrer(){
+  if(!formComplet()) return;
+  let p = trouverProduit(f.prod);
+  if(!p){ p = {id:uid(), nom:f.prod.trim()}; data.produits.push(p); }
+  let d = declDuForm();
+  if(!d.id){ d = {...d, id:uid(), produitId:p.id}; data.declinaisons.push(d); }
+  const r = releveDuForm(); r.id = uid(); r.declId = d.id;
+  data.releves.push(r);
+  sauver(); toast('Relevé enregistré');
+  f = formVide(f); cleZone = null; rendre();
+}
+
+// ---------- Lien reçu d'un proche ----------
+function declEntrante(){
+  const o = entrant;
+  const p = trouverProduit(o.produit);
+  const d = p && trouverDecl(p.id, o.decl, o.unite, o.contenance);
+  return d || {id:null, produitId: p ? p.id : null, nom:o.decl, unite:o.unite, contenance:o.contenance, besoin:1};
+}
+function carteEntrante(){
+  const o = entrant, d = declEntrante();
+  const r = {id:'__entrant', enseigne:o.enseigne, prix:o.prix, mec:o.mec, source:o.source, fin:o.fin, date:o.date};
+  return `<div class="card">
+    <p style="margin-top:0"><b>Un proche te partage une promo</b><br>
+    ${esc(o.produit)} (${esc(libDecl(d))}) chez ${esc(o.enseigne)} · ${esc(mecTxt(o.mec))}${o.fin ? ` · jusqu'au ${fmtDate(o.fin)}` : ''}</p>
+    ${blocVerdict(r, d)}
+    <div class="btns">
+      <button class="btn" id="btnIn">Ajouter à mes relevés</button>
+      <button class="btn sec" id="btnOut">Ignorer</button>
+    </div>
+  </div>`;
+}
+function brancherEntrant(){
+  const a = document.getElementById('btnIn'), b = document.getElementById('btnOut');
+  if(a) a.onclick = () => {
+    const o = entrant;
+    let p = trouverProduit(o.produit);
+    if(!p){ p = {id:uid(), nom:o.produit}; data.produits.push(p); }
+    let d = trouverDecl(p.id, o.decl, o.unite, o.contenance);
+    if(!d){ d = {id:uid(), produitId:p.id, nom:o.decl||'', unite:o.unite, contenance:o.contenance, besoin:1}; data.declinaisons.push(d); }
+    data.releves.push({id:uid(), declId:d.id, enseigne:o.enseigne, prix:o.prix, mec:o.mec, source:o.source||'folder', fin:o.fin||'', date:o.date||aujourdhui(), via:'proche'});
+    sauver(); entrant = null; toast('Ajouté à tes relevés'); rendre();
+  };
+  if(b) b.onclick = () => { entrant = null; rendre(); };
+}
+
+// ---------- Vue « Mes produits » ----------
+let prodOuvert = null, declOuverte = null;
+function resumeDecl(d){
+  const ref = reference(d), mp = meilleurePromo(d);
+  return {ref, mp, nb: relevesDe(d.id).length};
+}
+function vueProduits(){
+  if(declOuverte) return vueDecl(declOuverte);
+  if(prodOuvert) return vueProduit(prodOuvert);
+  if(!data.produits.length) return `<p class="empty">Aucun produit pour l'instant.<br>Ils apparaissent ici dès ton premier relevé.</p>`;
+  return [...data.produits].sort((a,b) => a.nom.localeCompare(b.nom, 'fr')).map(p => {
+    const ds = declsDe(p.id);
+    return `<button class="item" data-prod="${p.id}">
+      <b>${esc(p.nom)}</b><br>
+      <span class="muted">${ds.length} déclinaison${ds.length>1?'s':''}</span>
+    </button>`;
+  }).join('');
+}
+function vueProduit(id){
+  const p = prodParId(id);
+  if(!p){ prodOuvert = null; return vueProduits(); }
+  const ds = declsDe(id).map(d => ({d, ...resumeDecl(d)}))
+    .sort((a,b) => a.d.unite.localeCompare(b.d.unite) || ((a.ref?.pu ?? 1e9) - (b.ref?.pu ?? 1e9)));
+  return `
+  <p><button class="link" id="retour">‹ Mes produits</button></p>
+  <div class="card">
+    <label for="pNom">Produit</label>
+    <input id="pNom" value="${esc(p.nom)}">
+  </div>
+  <h2>Déclinaisons <span class="hint">(prix habituel le plus bas d'abord)</span></h2>
+  ${ds.map(({d, ref, mp, nb}) => `<button class="item" data-decl="${d.id}">
+      <b>${esc(libDecl(d))}</b>
+      ${ref ? `<br>Prix habituel le plus bas : ${fmtPU(ref.pu,d.unite)} · ${esc(ref.r.enseigne)}` : ''}
+      ${mp && ref && mp.pu < ref.pu ? `<br>Meilleure promo : ${fmtPU(mp.pu,d.unite)} · ${esc(mp.r.enseigne)}` : ''}
+      <br><span class="muted">${nb} relevé${nb>1?'s':''}</span>
+    </button>`).join('') || '<p class="muted">Aucune déclinaison.</p>'}
+  <button class="btn danger" id="pSuppr">Supprimer ce produit</button>`;
+}
+function brancherProduit(){
+  const p = prodParId(prodOuvert); if(!p) return;
+  document.getElementById('retour').onclick = () => { prodOuvert = null; rendre(); };
+  document.getElementById('pNom').onchange = e => {
+    const v = e.target.value.trim(), autre = trouverProduit(v);
+    if(!v) return;
+    if(autre && autre.id !== p.id){ e.target.value = p.nom; toast('Un produit porte déjà ce nom'); return; }
+    p.nom = v; sauver(); toast('Nom modifié');
+  };
+  document.querySelectorAll('[data-decl]').forEach(b => b.onclick = () => { declOuverte = b.dataset.decl; rendre(); window.scrollTo(0,0); });
+  document.getElementById('pSuppr').onclick = () => {
+    if(confirm(`Supprimer « ${p.nom} », ses déclinaisons et tous leurs relevés ?`)){
+      const ids = new Set(declsDe(p.id).map(d => d.id));
+      data.releves = data.releves.filter(r => !ids.has(r.declId));
+      data.declinaisons = data.declinaisons.filter(d => d.produitId !== p.id);
+      data.produits = data.produits.filter(x => x.id !== p.id);
+      sauver(); prodOuvert = null; rendre();
+    }
+  };
+}
+function vueDecl(id){
+  const d = declParId(id);
+  if(!d){ declOuverte = null; return vueProduits(); }
+  const p = prodParId(d.produitId);
+  const rels = relevesDe(id).map(r => ({r, pu:puEffectif(r, d)})).sort((a,b) => a.pu - b.pu);
+  const ref = reference(d), auj = aujourdhui();
+  return `
+  <p><button class="link" id="retour">‹ ${esc(p ? p.nom : 'Mes produits')}</button></p>
+  <div class="card">
+    <label for="dNomE">Variante</label>
+    <input id="dNomE" value="${esc(d.nom)}" placeholder="(aucune)">
+    <label for="dBesoin">Il t'en faut d'habitude</label>
+    <input id="dBesoin" inputmode="numeric" value="${d.besoin||1}">
+    <p class="muted" style="margin-bottom:0">${contTxt(d)}, comparé au ${UNITES[d.unite].aff}.</p>
+  </div>
+  <h2>Relevés <span class="hint">(du moins cher au plus cher)</span></h2>
+  <div class="card">
+    ${rels.map(({r,pu}) => `<div class="rel">
+      <div class="txt">
+        <b>${esc(r.enseigne)}</b>${ref && ref.r.id === r.id ? '<span class="tag">réf.</span>' : ''}${r.via==='proche' ? '<span class="tag">d’un proche</span>' : ''}<br>
+        <span class="muted">${esc(mecTxt(r.mec))} · ${eur(r.prix)} · ${fmtDate(r.date)}${r.fin ? (r.fin < auj ? ' · terminée' : ` · jusqu'au ${fmtDate(r.fin)}`) : ''}</span>
+        <br><button class="link" data-share="${r.id}">Partager</button>
+      </div>
+      <div class="pu">${fmtPU(pu, d.unite)}</div>
+      <button class="x" data-del="${r.id}" aria-label="Supprimer">×</button>
+    </div>`).join('') || '<p class="muted">Aucun relevé.</p>'}
+  </div>
+  <button class="btn" id="dVerif">Vérifier une promo pour cette déclinaison</button>
+  <button class="btn danger" id="dSuppr">Supprimer cette déclinaison</button>`;
+}
+function brancherDecl(){
+  const d = declParId(declOuverte); if(!d) return;
+  const p = prodParId(d.produitId);
+  document.getElementById('retour').onclick = () => { declOuverte = null; prodOuvert = d.produitId; rendre(); };
+  document.getElementById('dNomE').onchange = e => { d.nom = e.target.value.trim(); sauver(); toast('Enregistré'); };
+  document.getElementById('dBesoin').onchange = e => { const v = Math.round(num(e.target.value)); if(v >= 1){ d.besoin = v; sauver(); toast('Enregistré'); } };
+  document.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
+    if(confirm('Supprimer ce relevé ?')){ data.releves = data.releves.filter(r => r.id !== b.dataset.del); sauver(); rendre(); }
+  });
+  document.querySelectorAll('[data-share]').forEach(b => b.onclick = () => {
+    const r = data.releves.find(x => x.id === b.dataset.share); if(r) partager(r, d, p ? p.nom : '');
+  });
+  document.getElementById('dVerif').onclick = () => {
+    f = formVide(); f.prod = p ? p.nom : ''; f.declSel = d.id;
+    declOuverte = null; prodOuvert = null; onglet = 'verif'; cleZone = null; rendre();
+  };
+  document.getElementById('dSuppr').onclick = () => {
+    if(confirm(`Supprimer « ${libDecl(d)} » et ses relevés ?`)){
+      data.releves = data.releves.filter(r => r.declId !== d.id);
+      data.declinaisons = data.declinaisons.filter(x => x.id !== d.id);
+      // Un produit sans déclinaison n'a plus de raison d'exister
+      if(p && !declsDe(p.id).length){ data.produits = data.produits.filter(x => x.id !== p.id); prodOuvert = null; }
+      else prodOuvert = d.produitId;
+      sauver(); declOuverte = null; rendre();
+    }
+  };
+}
+
+// ---------- Vue « Sauvegarde » ----------
+function vueSauve(){
+  const np = data.produits.length, nd = data.declinaisons.length, nr = data.releves.length;
+  return `<div class="card">
+    <p style="margin-top:0">Tes produits et tes relevés restent sur ce téléphone, rien ne part sur un serveur.</p>
+    <p>Pour les garder en lieu sûr ou les passer sur un autre appareil, exporte un fichier (par exemple dans kDrive), puis importe-le de l'autre côté.</p>
+    <p class="muted">${np} produit${np>1?'s':''} · ${nd} déclinaison${nd>1?'s':''} · ${nr} relevé${nr>1?'s':''}</p>
+    <button class="btn" id="exp">Exporter</button>
+    <button class="btn sec" id="imp">Importer un fichier</button>
+    <input type="file" id="fichier" accept="application/json,.json" hidden>
+  </div>`;
+}
+function brancherSauve(){
+  document.getElementById('exp').onclick = async () => {
+    const nom = `scorte-${aujourdhui()}.json`;
+    const blob = new Blob([JSON.stringify(data, null, 1)], {type:'application/json'});
+    const file = new File([blob], nom, {type:'application/json'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      try{ await navigator.share({files:[file], title:nom}); return; }catch(e){ if(e.name === 'AbortError') return; }
+    }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nom; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+  const fi = document.getElementById('fichier');
+  document.getElementById('imp').onclick = () => fi.click();
+  fi.onchange = async () => {
+    const file = fi.files[0]; if(!file) return;
+    try{
+      const d = JSON.parse(await file.text());
+      if(!Array.isArray(d.produits) || !Array.isArray(d.declinaisons) || !Array.isArray(d.releves)) throw 0;
+      const n = {p:0, d:0, r:0};
+      const fusion = (cle, liste, k) => { const ids = new Set(data[cle].map(x => x.id)); liste.forEach(x => { if(x && x.id && !ids.has(x.id)){ data[cle].push(x); n[k]++; } }); };
+      fusion('produits', d.produits, 'p'); fusion('declinaisons', d.declinaisons, 'd'); fusion('releves', d.releves, 'r');
+      sauver(); toast(`Importé : ${n.p} produit(s), ${n.d} déclinaison(s), ${n.r} relevé(s)`); rendre();
+    }catch(e){ toast('Ce fichier ne vient pas de Scorte'); }
+    fi.value = '';
+  };
+}
+
+// ---------- Rendu ----------
+let onglet = 'verif';
+function rendre(){
+  const app = document.getElementById('app');
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === onglet));
+  if(onglet === 'verif'){
+    cleZone = null;
+    app.innerHTML = vueVerif();
+    brancherVerif(); brancherEntrant();
+    ajusterDecl();
+    if(f.prod && !f.prix) preremplir();
+    majVerif();
+  } else if(onglet === 'produits'){
+    app.innerHTML = vueProduits();
+    if(declOuverte) brancherDecl();
+    else if(prodOuvert) brancherProduit();
+    else app.querySelectorAll('[data-prod]').forEach(b => b.onclick = () => { prodOuvert = b.dataset.prod; rendre(); window.scrollTo(0,0); });
+  } else {
+    app.innerHTML = vueSauve(); brancherSauve();
+  }
+}
+function brancherChips(groupe){
+  groupe.addEventListener('click', ev => {
+    const b = ev.target.closest('.chip'); if(!b) return;
+    const champ = groupe.dataset.champ, v = b.dataset.v;
+    f[champ] = v;
+    if(champ === 'preset'){
+      if(v === '1+1'){ f.a='1'; f.b='1'; } else if(v === '2+1'){ f.a='2'; f.b='1'; } else if(v === '2+2'){ f.a='2'; f.b='2'; }
+      else if(v === 'neme'){ f.n='2'; f.pctN='50'; }
+      ['a','b','n','pctN'].forEach(k => { const el = document.getElementById(k); if(el) el.value = f[k]; });
+    }
+    groupe.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c === b));
+    if(champ === 'enseigne' || champ === 'declSel') preremplir();
+    majVerif();
+    if(champ === 'enseigne' && v === '__autre') document.getElementById('autreEns').focus();
+  });
+}
+function brancherVerif(){
+  ['prod','autreEns','prix','a','b','n','pctN','pct','prixPromo','x','y','fin'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.addEventListener('input', () => {
+      f[id] = el.value;
+      if(id === 'prix' && f.auto) f.auto = null;
+      if(id === 'prod'){ ajusterDecl(); preremplir(); }
+      majVerif();
+    });
+  });
+  document.querySelectorAll('#app .card > [data-champ]').forEach(brancherChips);
+}
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => { onglet = b.dataset.tab; prodOuvert = null; declOuverte = null; rendre(); window.scrollTo(0,0); });
+
+lireLien();
+rendre();
+if('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+</script>
+</body>
+</html>
