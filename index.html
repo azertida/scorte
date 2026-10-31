@@ -49,6 +49,11 @@ nav button.on{color:var(--ocre);font-weight:700}
 .vt{font-weight:700;font-size:1.1rem}
 .big{font-size:1.6rem;font-weight:700;margin:4px 0}
 .caisse{font-size:1.15rem;margin:6px 0 2px}
+.ligne{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-top:8px}
+.ligne>span:first-child{min-width:0}
+.prix{font-weight:700;white-space:nowrap;text-align:right}
+.prix small{display:block;font-weight:400;font-size:.85rem;color:var(--muted)}
+.prix.promo{color:var(--rouge)}
 .v-vert{background:var(--vert-l);color:var(--vert)}
 .v-jaune{background:var(--jaune-l);color:var(--jaune)}
 .v-rouge{background:var(--rouge-l);color:var(--rouge)}
@@ -191,6 +196,23 @@ function meilleurePromo(d){
   }
   return best;
 }
+// Prix à afficher sur les cartes : la meilleure promo encore valable, sinon le meilleur prix habituel
+function prixCarte(d){
+  const auj = aujourdhui();
+  let mp = null;
+  for(const r of relevesDe(d.id).filter(x => x.mec.type !== 'aucune' && (!x.fin || x.fin >= auj))){
+    const pu = puEffectif(r, d); if(!mp || pu < mp.pu) mp = {pu, r};
+  }
+  const ref = reference(d);
+  if(mp && (!ref || mp.pu < ref.pu)){ const c = calc(mp.r.prix, mp.r.mec); return {montant:c.total, n:c.n, promo:true, enseigne:mp.r.enseigne, mec:mp.r.mec}; }
+  if(ref) return {montant:ref.r.prix, n:1, promo:false, enseigne:ref.r.enseigne};
+  return null;
+}
+function htmlPrix(pc){
+  if(!pc) return '';
+  return `<span class="prix${pc.promo ? ' promo' : ''}">${eur(pc.montant)}${pc.n > 1 ? `<small> pour ${pc.n}</small>` : ''}<small>${esc(pc.enseigne)}${pc.promo ? ' · ' + esc(mecTxt(pc.mec)) : ''}</small></span>`;
+}
+
 function evaluer(r, d){
   const besoin = d.besoin || 1;
   const {n, total} = calc(r.prix, r.mec);
@@ -507,8 +529,8 @@ function vueProduits(){
   return [...data.produits].sort((a,b) => a.nom.localeCompare(b.nom, 'fr')).map(p => {
     const ds = declsDe(p.id);
     return `<button class="item" data-prod="${p.id}">
-      <b>${esc(p.nom)}</b><br>
-      <span class="muted">${ds.length} déclinaison${ds.length>1?'s':''}</span>
+      <b>${esc(p.nom)}</b>
+      ${ds.map(d => `<div class="ligne"><span>${esc(libDecl(d))}</span>${htmlPrix(prixCarte(d))}</div>`).join('')}
     </button>`;
   }).join('');
 }
@@ -525,10 +547,12 @@ function vueProduit(id){
   </div>
   <h2>Déclinaisons <span class="hint">(prix habituel le plus bas d'abord)</span></h2>
   ${ds.map(({d, ref, mp, nb}) => `<button class="item" data-decl="${d.id}">
+      <div class="ligne" style="margin-top:0"><span>
       <b>${esc(libDecl(d))}</b>
       ${ref ? `<br>Prix habituel le plus bas : ${fmtPU(ref.pu,d.unite)} · ${esc(ref.r.enseigne)}` : ''}
       ${mp && ref && mp.pu < ref.pu ? `<br>Meilleure promo : ${fmtPU(mp.pu,d.unite)} · ${esc(mp.r.enseigne)}` : ''}
       <br><span class="muted">${nb} relevé${nb>1?'s':''}</span>
+      </span>${htmlPrix(prixCarte(d))}</div>
     </button>`).join('') || '<p class="muted">Aucune déclinaison.</p>'}
   <button class="btn" id="pNouvelle">+ Ajouter une déclinaison</button>
   <button class="btn danger" id="pSuppr">Supprimer ce produit</button>`;
