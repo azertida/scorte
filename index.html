@@ -87,6 +87,12 @@ nav button.on{color:var(--ocre);font-weight:700}
 .ligne{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-top:8px}
 .ligne>span:first-child,.ligne>b{min-width:0}
 .details{margin-top:8px;display:flex;flex-direction:column;gap:2px}
+.ariane{margin:14px 0 4px;color:var(--muted);line-height:1.6}
+.ariane > span[aria-hidden]{margin:0 6px}
+.ariane .ici{color:var(--ink);font-weight:600}
+.ok{font-weight:400;color:var(--vert);font-size:.9rem}
+.auto{margin:0 0 10px;color:var(--muted);font-size:.9rem}
+.bandeau{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 .stock{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px}
 .chip-s{font-size:.85rem;border-radius:999px;padding:2px 10px}
 .chip-s.bas{background:var(--rouge-l);color:var(--rouge)}
@@ -429,11 +435,20 @@ function preremplir(){
   document.querySelectorAll('[data-champ="enseigne"] .chip').forEach(c => c.classList.toggle('on', c.dataset.v === f.enseigne));
 }
 
+function bandeauRetour(){
+  const r = f.retour;
+  const titre = r.type === 'decl'
+    ? (() => { const d = declParId(r.id); return `Nouveau relevé · ${d ? libDecl(d) : ''}`; })()
+    : (() => { const p = prodParId(r.id); return `Nouvelle déclinaison · ${p ? p.nom : ''}`; })();
+  return `<div class="verdict v-info bandeau"><p><b>${esc(titre)}</b><br>Après l'enregistrement, tu reviens sur la fiche.</p>
+    <button class="link" id="btnRetour">Annuler</button></div>`;
+}
 function vueVerif(){
   const ens = enseignesConnues();
   return `
   ${entrant && !f.editId ? carteEntrante() : ''}
   ${f.editId ? `<div class="verdict v-info"><p><b>Correction du relevé du ${fmtDate(f.editDate)}</b><br>Change ce qui est faux, puis enregistre.</p></div>` : ''}
+  ${!f.editId && f.retour ? bandeauRetour() : ''}
   <div class="card">
     <label for="prod">Produit <span class="hint">(marque et gamme)</span></label>
     <input id="prod" list="prodList" autocomplete="off" placeholder="ex. Dash Pods 3en1" value="${esc(f.prod)}">
@@ -626,8 +641,34 @@ function enregistrer(achat){
     r.achat = n; d.stock = (d.stock || 0) + n;
     sauver(); toast(`+${n} en réserve (${d.stock} au total)`);
   } else { sauver(); toast('Prix noté'); }
+  if(f.retour){ const ret = f.retour; f = formVide(f); cleZone = null; allerA(ret.type === 'decl' ? {type:'decl', id:d.id} : {type:'prod', id:p.id}); return; }
   f = formVide(f); cleZone = null; rendre();
 }
+// Navigation entre les niveaux : liste, produit, déclinaison
+function allerA(cible){
+  onglet = 'produits'; prodOuvert = null; declOuverte = null;
+  if(cible && cible.type === 'prod' && prodParId(cible.id)) prodOuvert = cible.id;
+  if(cible && cible.type === 'decl' && declParId(cible.id)) declOuverte = cible.id;
+  rendre(); window.scrollTo(0,0);
+}
+function annulerRetour(){ const ret = f.retour; f = formVide(); cleZone = null; allerA(ret); }
+// Fil d'Ariane : chaque niveau au-dessus est un lien, le niveau actuel est en clair
+function filAriane(niveaux){
+  return `<div class="ariane" role="navigation" aria-label="Où je suis">${niveaux.map((n, i) => i < niveaux.length - 1
+    ? `<button class="link" data-ariane="${n.type}" data-id="${n.id || ''}">${esc(n.label)}</button><span aria-hidden="true">›</span>`
+    : `<span class="ici">${esc(n.label)}</span>`).join('')}</div>`;
+}
+function brancherAriane(){
+  document.querySelectorAll('[data-ariane]').forEach(b => b.onclick = () => allerA({type:b.dataset.ariane, id:b.dataset.id}));
+}
+// Enregistrement automatique : une coche reste à côté du champ modifié
+function marquerEnregistre(el){
+  const lab = document.querySelector(`label[for="${el.id}"]`); if(!lab) return;
+  let ok = lab.querySelector('.ok');
+  if(!ok){ ok = document.createElement('span'); ok.className = 'ok'; lab.appendChild(ok); }
+  ok.textContent = ' ✓ Enregistré';
+}
+const NOTE_AUTO = '<p class="auto">Les modifications s\'enregistrent toutes seules.</p>';
 // Quitte la correction et revient sur la fiche de la déclinaison
 function finCorrection(declId){
   const id = typeof declId === 'string' ? declId : (declParId(declDuForm().id || '') || {}).id || (data.releves.find(x => x.id === f.editId) || {}).declId;
@@ -694,8 +735,9 @@ function vueProduit(id){
   const ds = declsDe(id).map(d => ({d, ...resumeDecl(d)}))
     .sort((a,b) => a.d.unite.localeCompare(b.d.unite) || ((a.ref?.pu ?? 1e9) - (b.ref?.pu ?? 1e9)));
   return `
-  <p><button class="link" id="retour">‹ Mes produits</button></p>
+  ${filAriane([{type:'liste', label:'Mes produits'}, {label:p.nom}])}
   <div class="card">
+    ${NOTE_AUTO}
     <label for="pNom">Produit</label>
     <input id="pNom" value="${esc(p.nom)}">
   </div>
@@ -714,16 +756,17 @@ function vueProduit(id){
 }
 function brancherProduit(){
   const p = prodParId(prodOuvert); if(!p) return;
-  document.getElementById('retour').onclick = () => { prodOuvert = null; rendre(); };
+  brancherAriane();
   document.getElementById('pNom').onchange = e => {
     const v = e.target.value.trim(), autre = trouverProduit(v);
-    if(!v) return;
+    if(!v){ e.target.value = p.nom; return; }
     if(autre && autre.id !== p.id){ e.target.value = p.nom; toast('Un produit porte déjà ce nom'); return; }
-    p.nom = v; sauver(); toast('Nom modifié');
+    p.nom = v; sauver(); marquerEnregistre(e.target);
+    const ici = document.querySelector('.ariane .ici'); if(ici) ici.textContent = v;
   };
   document.querySelectorAll('[data-decl]').forEach(b => b.onclick = () => { declOuverte = b.dataset.decl; rendre(); window.scrollTo(0,0); });
   document.getElementById('pNouvelle').onclick = () => {
-    f = formVide(); f.prod = p.nom; f.declSel = '__new';
+    f = formVide(); f.prod = p.nom; f.declSel = '__new'; f.retour = {type:'prod', id:p.id};
     prodOuvert = null; onglet = 'verif'; rendre(); window.scrollTo(0,0);
     const el = document.getElementById('dNom'); if(el) el.focus();
   };
@@ -744,8 +787,9 @@ function vueDecl(id){
   const rels = relevesDe(id).map(r => ({r, pu:puEffectif(r, d)})).sort((a,b) => a.pu - b.pu);
   const ref = reference(d), auj = aujourdhui();
   return `
-  <p><button class="link" id="retour">‹ ${esc(p ? p.nom : 'Mes produits')}</button></p>
+  ${filAriane([{type:'liste', label:'Mes produits'}, ...(p ? [{type:'prod', id:p.id, label:p.nom}] : []), {label:libDecl(d)}])}
   <div class="card">
+    ${NOTE_AUTO}
     <label for="dNomE">Variante</label>
     <input id="dNomE" value="${esc(d.nom)}" placeholder="(aucune)">
     <label for="dBesoin">Il t'en faut d'habitude</label>
@@ -784,9 +828,15 @@ function vueDecl(id){
 function brancherDecl(){
   const d = declParId(declOuverte); if(!d) return;
   const p = prodParId(d.produitId);
-  document.getElementById('retour').onclick = () => { declOuverte = null; prodOuvert = d.produitId; rendre(); };
-  document.getElementById('dNomE').onchange = e => { d.nom = e.target.value.trim(); sauver(); toast('Enregistré'); };
-  document.getElementById('dBesoin').onchange = e => { const v = Math.round(num(e.target.value)); if(v >= 1){ d.besoin = v; sauver(); toast('Enregistré'); } };
+  brancherAriane();
+  document.getElementById('dNomE').onchange = e => {
+    d.nom = e.target.value.trim(); sauver(); marquerEnregistre(e.target);
+    const ici = document.querySelector('.ariane .ici'); if(ici) ici.textContent = libDecl(d);
+  };
+  document.getElementById('dBesoin').onchange = e => {
+    const v = Math.round(num(e.target.value));
+    if(v >= 1){ d.besoin = v; e.target.value = v; sauver(); marquerEnregistre(e.target); } else e.target.value = d.besoin || 1;
+  };
   document.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
     const r = data.releves.find(x => x.id === b.dataset.del); if(!r) return;
     if(confirm(r.achat ? `Supprimer ce relevé ? Son achat (${r.achat}) sera retiré de ta réserve.` : 'Supprimer ce relevé ?')){
@@ -797,11 +847,15 @@ function brancherDecl(){
   const majStock = v => { d.stock = Math.max(0, v); sauver(); rendre(); };
   document.getElementById('sMoins').onclick = () => majStock((d.stock || 0) - 1);
   document.getElementById('sPlus').onclick = () => majStock((d.stock || 0) + 1);
-  document.getElementById('sBas').onchange = e => { const v = Math.round(num(e.target.value)); if(v >= 0){ d.seuilBas = v; sauver(); toast('Enregistré'); } };
+  document.getElementById('sBas').onchange = e => {
+    const v = Math.round(num(e.target.value));
+    if(v >= 0){ d.seuilBas = v; e.target.value = v; sauver(); marquerEnregistre(e.target); } else e.target.value = d.seuilBas ?? 1;
+  };
   document.getElementById('sHaut').onchange = e => {
     const t = e.target.value.trim();
-    if(!t){ delete d.seuilHaut; sauver(); toast('Pas d\'alerte « réserve pleine »'); return; }
-    const v = Math.round(num(t)); if(v >= 1){ d.seuilHaut = v; sauver(); toast('Enregistré'); }
+    if(!t){ delete d.seuilHaut; sauver(); marquerEnregistre(e.target); return; }
+    const v = Math.round(num(t));
+    if(v >= 1){ d.seuilHaut = v; e.target.value = v; sauver(); marquerEnregistre(e.target); } else e.target.value = d.seuilHaut ?? '';
   };
   document.querySelectorAll('[data-share]').forEach(b => b.onclick = () => {
     const r = data.releves.find(x => x.id === b.dataset.share); if(r) partager(r, d, p ? p.nom : '');
@@ -817,8 +871,8 @@ function brancherDecl(){
     declOuverte = null; prodOuvert = null; onglet = 'verif'; rendre(); window.scrollTo(0,0);
   });
   document.getElementById('dVerif').onclick = () => {
-    f = formVide(); f.prod = p ? p.nom : ''; f.declSel = d.id;
-    declOuverte = null; prodOuvert = null; onglet = 'verif'; cleZone = null; rendre();
+    f = formVide(); f.prod = p ? p.nom : ''; f.declSel = d.id; f.retour = {type:'decl', id:d.id};
+    declOuverte = null; prodOuvert = null; onglet = 'verif'; cleZone = null; rendre(); window.scrollTo(0,0);
   };
   document.getElementById('dSuppr').onclick = () => {
     if(confirm(`Supprimer « ${libDecl(d)} » et ses relevés ?`)){
@@ -926,8 +980,9 @@ function brancherVerif(){
     });
   });
   document.querySelectorAll('#app .card > [data-champ]').forEach(brancherChips);
+  const br = document.getElementById('btnRetour'); if(br) br.onclick = annulerRetour;
 }
-document.querySelectorAll('nav button').forEach(b => b.onclick = () => { if(f.editId) f = formVide(); onglet = b.dataset.tab; prodOuvert = null; declOuverte = null; rendre(); window.scrollTo(0,0); });
+document.querySelectorAll('body > nav button').forEach(b => b.onclick = () => { if(f.editId || f.retour) f = formVide(); onglet = b.dataset.tab; prodOuvert = null; declOuverte = null; rendre(); window.scrollTo(0,0); });
 
 lireLien();
 rendre();
