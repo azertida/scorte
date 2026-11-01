@@ -93,6 +93,8 @@ nav button.on{color:var(--ocre);font-weight:700}
 .ok{font-weight:400;color:var(--vert);font-size:.9rem}
 .auto{margin:0 0 10px;color:var(--muted);font-size:.9rem}
 .bandeau{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.total{display:table;margin-top:6px;background:var(--ocre-l);border-radius:8px;padding:3px 10px;font-size:.95rem}
+h2 + .total{margin:0 0 4px}
 .stock{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px}
 .chip-s{font-size:.85rem;border-radius:999px;padding:2px 10px}
 .chip-s.bas{background:var(--rouge-l);color:var(--rouge)}
@@ -290,19 +292,17 @@ function prixCarte(d){
 // ---------- Réserve ----------
 // Le stock compte des exemplaires (paquets, bouteilles). Non suivi tant qu'il n'existe pas.
 const aStock = d => typeof d.stock === 'number';
-function etatStock(d){
-  if(!aStock(d)) return null;
-  const bas = d.seuilBas ?? 1, haut = d.seuilHaut;
-  if(d.stock <= bas) return 'bas';
-  if(haut && d.stock >= haut) return 'haut';
-  return 'ok';
-}
 function htmlStock(d){
   if(!aStock(d)) return '';
-  const e = etatStock(d);
   return `<div class="stock"><span>En réserve : <b>${d.stock}</b></span>
-    ${e === 'bas' ? '<span class="chip-s bas">À racheter</span>' : e === 'haut' ? '<span class="chip-s haut">Réserve pleine</span>' : ''}
     ${d.stock > 0 ? `<button class="moins" data-moins="${d.id}" aria-label="J'en ai entamé un">−1</button>` : ''}</div>`;
+}
+// Total des réserves d'un produit, affiché dès que plusieurs déclinaisons en ont une
+function htmlTotal(prodId){
+  const suivies = declsDe(prodId).filter(aStock);
+  if(suivies.length < 2) return '';
+  const t = suivies.reduce((s, d) => s + d.stock, 0);
+  return `<div class="total">Réserve totale : <b>${t}</b></div>`;
 }
 function retirerUn(id){
   const d = declParId(id); if(!d || !(d.stock > 0)) return;
@@ -360,7 +360,7 @@ let f = formVide();
 function formVide(garder){
   return {prod:'', declSel:'', dNom:'', unite:'piece', contenance:'', besoin:'1',
           enseigne: garder?.enseigne || '', autreEns:'', prix:'',
-          preset:'aucune', a:'1', b:'1', n:'2', pctN:'50', nV:'2', pctV:'20', pct:'30', prixPromo:'', x:'3', y:'',
+          stockInit:'', preset:'aucune', a:'1', b:'1', n:'2', pctN:'50', nV:'2', pctV:'20', pct:'30', prixPromo:'', x:'3', y:'',
           source: garder?.source || 'rayon', fin:'', auto:null, editId:null, editDate:null};
 }
 // Remplit le formulaire avec un relevé existant, pour le corriger
@@ -395,7 +395,8 @@ function declDuForm(){
   const p = trouverProduit(f.prod);
   if(p && f.declSel && f.declSel !== '__new'){ const d = declParId(f.declSel); if(d && d.produitId === p.id) return d; }
   return {id:null, produitId: p ? p.id : null, nom:f.dNom.trim(), unite:f.unite,
-          contenance:num(f.contenance), besoin: Math.max(1, Math.round(num(f.besoin)) || 1)};
+          contenance:num(f.contenance), besoin: Math.max(1, Math.round(num(f.besoin)) || 1),
+          ...(Math.round(num(f.stockInit)) >= 0 ? {stock: Math.round(num(f.stockInit))} : {})};
 }
 function releveDuForm(){
   return {id:f.editId || null, enseigne: f.enseigne === '__autre' ? f.autreEns.trim() : f.enseigne,
@@ -532,10 +533,12 @@ function rendreDeclZone(){
           <input id="contenance" inputmode="decimal" value="${esc(f.contenance)}"></div>
         <div><label for="besoin">Il t'en faut d'habitude</label>
           <input id="besoin" inputmode="numeric" value="${esc(f.besoin)}"></div>
-      </div>`;
+      </div>
+      <label for="stockInit">Déjà en réserve <span class="hint">(facultatif)</span></label>
+      <input id="stockInit" inputmode="numeric" placeholder="ex. 3" value="${esc(f.stockInit)}">`;
   }
   z.innerHTML = h;
-  ['dNom','contenance','besoin'].forEach(id => {
+  ['dNom','contenance','besoin','stockInit'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.addEventListener('input', () => { f[id] = el.value; majVerif(); });
   });
@@ -604,10 +607,7 @@ function blocVerdict(r, d){
     h += `<div class="verdict v-info"><p>Ta meilleure promo vue pour cette déclinaison : ${fmtPU(mp.pu,u)} chez ${esc(mp.r.enseigne)} (${esc(mecTxt(mp.r.mec))}, ${fmtDate(mp.r.date)}).</p></div>`;
   }
   if(aStock(d)){
-    const es = etatStock(d);
-    if(es === 'haut') h += `<div class="verdict v-jaune"><p><b>Réserve pleine :</b> tu en as déjà ${d.stock} à la maison. Pas besoin d'en racheter.</p></div>`;
-    else if(es === 'bas') h += `<div class="verdict v-info"><p><b>${d.stock ? `Plus que ${d.stock} en réserve` : 'Plus rien en réserve'}</b> : c'est le moment d'en racheter.</p></div>`;
-    else h += `<div class="verdict v-info"><p>En réserve : <b>${d.stock}</b>.</p></div>`;
+    h += `<div class="verdict v-info"><p>${d.stock ? `Déjà en réserve à la maison : <b>${d.stock}</b>.` : 'Plus rien en réserve à la maison.'}</p></div>`;
   }
   if(e.surplus){
     const s = e.surplus;
@@ -724,7 +724,7 @@ function vueProduits(){
   return [...data.produits].sort((a,b) => a.nom.localeCompare(b.nom, 'fr')).map(p => {
     const ds = declsDe(p.id);
     return `<div class="item" role="button" tabindex="0" data-prod="${p.id}">
-      <b>${esc(p.nom)}</b>
+      <b>${esc(p.nom)}</b>${htmlTotal(p.id)}
       ${ds.map(d => `<div class="ligne"><span>${esc(libDecl(d))}</span>${htmlPrix(prixCarte(d))}</div>${htmlStock(d)}`).join('')}
     </div>`;
   }).join('');
@@ -742,6 +742,7 @@ function vueProduit(id){
     <input id="pNom" value="${esc(p.nom)}">
   </div>
   <h2>Déclinaisons <span class="hint">(prix habituel le plus bas d'abord)</span></h2>
+  ${htmlTotal(p.id)}
   ${ds.map(({d, ref, mp, nb}) => `<div class="item" role="button" tabindex="0" data-decl="${d.id}">
       <div class="ligne" style="margin-top:0"><b>${esc(libDecl(d))}</b>${htmlPrix(prixCarte(d))}</div>
       <div class="details">
@@ -804,10 +805,6 @@ function vueDecl(id){
       <button class="moins" id="sPlus" aria-label="Ajouter un">+1</button>
     </div>
     <p class="muted" style="text-align:center;margin:6px 0 0">Tes achats s'ajoutent tout seuls. Ces boutons servent à corriger, ou à compter ce que tu as déjà.</p>
-    <div class="row">
-      <div><label for="sBas">À racheter dès</label><input id="sBas" inputmode="numeric" value="${d.seuilBas ?? 1}"></div>
-      <div><label for="sHaut">Pleine dès</label><input id="sHaut" inputmode="numeric" placeholder="aucune" value="${d.seuilHaut ?? ''}"></div>
-    </div>
   </div>
   <h2>Relevés <span class="hint">(du moins cher au plus cher)</span></h2>
   <div class="card">
@@ -847,16 +844,6 @@ function brancherDecl(){
   const majStock = v => { d.stock = Math.max(0, v); sauver(); rendre(); };
   document.getElementById('sMoins').onclick = () => majStock((d.stock || 0) - 1);
   document.getElementById('sPlus').onclick = () => majStock((d.stock || 0) + 1);
-  document.getElementById('sBas').onchange = e => {
-    const v = Math.round(num(e.target.value));
-    if(v >= 0){ d.seuilBas = v; e.target.value = v; sauver(); marquerEnregistre(e.target); } else e.target.value = d.seuilBas ?? 1;
-  };
-  document.getElementById('sHaut').onchange = e => {
-    const t = e.target.value.trim();
-    if(!t){ delete d.seuilHaut; sauver(); marquerEnregistre(e.target); return; }
-    const v = Math.round(num(t));
-    if(v >= 1){ d.seuilHaut = v; e.target.value = v; sauver(); marquerEnregistre(e.target); } else e.target.value = d.seuilHaut ?? '';
-  };
   document.querySelectorAll('[data-share]').forEach(b => b.onclick = () => {
     const r = data.releves.find(x => x.id === b.dataset.share); if(r) partager(r, d, p ? p.nom : '');
   });
