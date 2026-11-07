@@ -133,8 +133,8 @@ input[inputmode="decimal"],input[inputmode="numeric"]{font-family:'DM Mono',mono
 <header><h1>Scorte</h1></header>
 <main id="app"></main>
 <nav>
-  <button data-tab="verif" class="on">Vérifier</button>
-  <button data-tab="produits">Mes produits</button>
+  <button data-tab="produits" class="on">Mes produits</button>
+  <button data-tab="verif">+ Relevé</button>
   <button data-tab="sauve">Sauvegarde</button>
 </nav>
 <div id="toast"></div>
@@ -720,7 +720,8 @@ function resumeDecl(d){
 function vueProduits(){
   if(declOuverte) return vueDecl(declOuverte);
   if(prodOuvert) return vueProduit(prodOuvert);
-  if(!data.produits.length) return `<p class="empty">Aucun produit pour l'instant.<br>Ils apparaissent ici dès ton premier relevé.</p>`;
+  if(!data.produits.length) return `<p class="empty">Aucun produit pour l'instant.<br>Ils apparaissent ici dès ton premier relevé.</p>
+    <button class="btn" id="premierReleve">+ Nouveau relevé</button>`;
   return [...data.produits].sort((a,b) => a.nom.localeCompare(b.nom, 'fr')).map(p => {
     const ds = declsDe(p.id);
     return `<div class="item" role="button" tabindex="0" data-prod="${p.id}">
@@ -913,7 +914,7 @@ function brancherSauve(){
 }
 
 // ---------- Rendu ----------
-let onglet = 'verif';
+let onglet = 'produits';
 function rendre(){
   const app = document.getElementById('app');
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === onglet));
@@ -928,7 +929,10 @@ function rendre(){
     app.innerHTML = vueProduits();
     if(declOuverte) brancherDecl();
     else if(prodOuvert) brancherProduit();
-    else app.querySelectorAll('[data-prod]').forEach(b => b.onclick = () => { prodOuvert = b.dataset.prod; rendre(); window.scrollTo(0,0); });
+    else {
+      app.querySelectorAll('[data-prod]').forEach(b => b.onclick = () => { prodOuvert = b.dataset.prod; rendre(); window.scrollTo(0,0); });
+      const pr = document.getElementById('premierReleve'); if(pr) pr.onclick = () => { onglet = 'verif'; rendre(); };
+    }
   } else {
     app.innerHTML = vueSauve(); brancherSauve();
   }
@@ -972,6 +976,7 @@ function brancherVerif(){
 document.querySelectorAll('body > nav button').forEach(b => b.onclick = () => { if(f.editId || f.retour) f = formVide(); onglet = b.dataset.tab; prodOuvert = null; declOuverte = null; rendre(); window.scrollTo(0,0); });
 
 lireLien();
+if(entrant) onglet = 'verif';   // un lien reçu s'ouvre là où s'affiche son verdict
 rendre();
 if('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 </script>
